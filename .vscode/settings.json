@@ -1,0 +1,16 @@
+{
+    "files.associations": {
+        "terminal.h": "c",
+        "limine.h": "c",
+        "io.h": "c",
+        "pic.h": "c",
+        "idt.h": "c",
+        "frame.h": "c",
+        "keyboard.h": "c",
+        "stdint.h": "c",
+        "cstdint": "c",
+        "stdint-gcc.h": "c",
+        "memmap.h": "c",
+        "bitmap.h": "c"
+    }
+}
