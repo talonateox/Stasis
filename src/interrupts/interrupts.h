@@ -17,5 +17,5 @@ static inline void sti() {
 }
 
 static inline void cli() {
-    asm("sti");
+    asm("cti");
 }
