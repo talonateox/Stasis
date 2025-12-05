@@ -186,3 +186,28 @@ void scheduler_tick() {
 
     scheduler_schedule();
 }
+
+void scheduler_print_tasks() {
+    uint64_t flags = spin_lock(&scheduler_lock);
+    task_t* cur = ready_queue_head;
+    if(cur == NULL) {
+        printkf("No tasks in ready queue\n");
+        spin_unlock(&scheduler_lock, flags);
+        return;
+    }
+
+    while(cur) {
+        const char* state_str = "UNKNOWN";
+        switch(cur->state) {
+            case TASK_READY: state_str = "READY"; break;
+            case TASK_RUNNING: state_str = "RUNNING"; break;
+            case TASK_BLOCKED: state_str = "BLOCKED"; break;
+            case TASK_TERMINATED: state_str = "TERMINATED"; break;
+        }
+
+        printkf("%d: task=%p state=%s stack=%llu entry=%p\n", cur->pid, (void*)cur, state_str, cur->stack_size, (void*)cur->entry_point);
+
+        cur = cur->next;
+    }
+    spin_unlock(&scheduler_lock, flags);
+}

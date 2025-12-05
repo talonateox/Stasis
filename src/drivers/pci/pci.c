@@ -15,7 +15,7 @@ void func_enumerate(uint64_t dev_address, uint64_t bus, uint64_t dev, uint64_t f
     const char* vendor_name = pci_get_vendor_name(header->vendor);
     const char* class_name = pci_get_class_name(header->_class);
 
-    printkf("       %x/%x:%x - %s %s (%x:%x)\n", bus, dev, func, vendor_name, class_name, header->vendor, header->device);
+    printkf("%x/%x:%x - %s %s (%x:%x)\n", bus, dev, func, vendor_name, class_name, header->vendor, header->device);
 }
 
 void dev_enumerate(uint64_t bus_address, uint64_t bus, uint64_t dev) {

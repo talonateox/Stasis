@@ -33,3 +33,4 @@ typedef struct {
 
 void acpi_init(rsdp2_t* rsdp, uint64_t offset);
 sdt_header_t* acpi_find_table(rsdp2_t* rsdp, uint64_t offset, const char* signature);
+mcfg_header_t* acpi_get_mcfg();

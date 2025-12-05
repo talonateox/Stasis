@@ -5,17 +5,16 @@
 #include "../../io/terminal.h"
 #include "../pci/pci.h"
 
+static mcfg_header_t* _g_mcfg = NULL;
+
 void acpi_init(rsdp2_t* rsdp, uint64_t offset) {
     printkf_info("Initializing ACPI...\n");
 
     mcfg_header_t* mcfg = (mcfg_header_t*)acpi_find_table(rsdp, offset, "MCFG");
-
-    printkf_info("Enumerating PCI devices...\n");
-    pci_enumerate(mcfg);
+    _g_mcfg = mcfg;
 
     printkf_ok("ACPI initialized\n");
 }
-
 
 sdt_header_t* acpi_find_table(rsdp2_t* rsdp, uint64_t offset, const char* signature) {
     if(rsdp->revision == 0) {
@@ -81,4 +80,8 @@ sdt_header_t* acpi_find_table(rsdp2_t* rsdp, uint64_t offset, const char* signat
     }
 
     return NULL;
+}
+
+mcfg_header_t* acpi_get_mcfg() {
+    return _g_mcfg;
 }

@@ -20,6 +20,7 @@ void terminal_init(struct limine_framebuffer* fb);
 
 void terminal_set_fg(uint32_t color);
 void terminal_set_bg(uint32_t color);
+void terminal_clear();
 
 int putkc(char c);
 int putks(const char* s);
