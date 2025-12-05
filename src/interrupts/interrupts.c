@@ -1,6 +1,9 @@
 #include "interrupts.h"
 
+#include "../io/io.h"
+#include "../drivers/pic/pic.h"
 #include "../io/terminal.h"
+#include "../drivers/timer/pit.h"
 #include "../mem/alloc/page_frame_alloc.h"
 #include "../drivers/keyboard/keyboard.h"
 
@@ -17,6 +20,12 @@ void double_fault_handler(struct interrupt_frame* frame, uint64_t error_code) {
 __attribute__((interrupt))
 void gp_fault_handler(struct interrupt_frame* frame, uint64_t error_code) {
     panic_with_frame(frame, error_code, "GENERAL PROTECTION FAULT");
+}
+
+__attribute__((interrupt))
+void irq0_handler(struct interrupt_frame* frame) {
+    pit_interrupt_handler();
+    outb(PIC1_COMMAND, PIC_EOI);
 }
 
 idtr_t _g_idtr;
@@ -40,6 +49,8 @@ void interrupts_init() {
     add_idt_entry((uint64_t)gp_fault_handler, 0x0d, IDT_INTERRUPT_GATE, 0x08);
 
     add_idt_entry((uint64_t)keyboard_handler, 0x21, IDT_INTERRUPT_GATE, 0x08);
+
+    add_idt_entry((uint64_t)irq0_handler, 0x20, IDT_INTERRUPT_GATE, 0x08);
 
     printkf_info("Loading IDT...\n");
     asm("lidt %0" : : "m"(_g_idtr));

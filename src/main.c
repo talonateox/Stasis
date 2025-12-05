@@ -7,6 +7,7 @@
 #include "io/terminal.h"
 
 #include "mem/memmap.h"
+#include "mem/alloc/heap.h"
 #include "mem/paging/paging.h"
 #include "mem/alloc/page_frame_alloc.h"
 
@@ -15,6 +16,7 @@
 #include "interrupts/interrupts.h"
 
 #include "drivers/pic/pic.h"
+#include "drivers/timer/timer.h"
 #include "drivers/keyboard/keyboard.h"
 
 extern uint8_t _kernel_start[];
@@ -80,6 +82,7 @@ void kmain(void) {
     if(hhdm_request.response == NULL) panic("HHDM REQUEST INVALID!");
     if(rsdp_request.response == NULL) panic("RSDP REQUEST INVALID");
 
+    size_t offset = hhdm_request.response->offset;
     rsdp2_t* rsdp = (rsdp2_t*)rsdp_request.response->address;
 
     printkf_info("Loading GDT...\n");
@@ -90,22 +93,31 @@ void kmain(void) {
 
     // memmap_print();
 
-    pfallocator_init(hhdm_request.response->offset);
+    pfallocator_init(offset);
 
     printkf_info("FREE RAM: %k%llu%k\n", 0xcccc66, pfallocator_get_free_ram(), 0xffffff);
     printkf_info("USED RAM: %k%llu%k\n", 0xcccc66, pfallocator_get_used_ram(), 0xffffff);
 
-    page_table_init(hhdm_request.response->offset, (uint64_t)_kernel_start, (uint64_t)_kernel_end);
-
-    printkf_info("FREE RAM: %k%llu%k\n", 0xcccc66, pfallocator_get_free_ram(), 0xffffff);
-    printkf_info("USED RAM: %k%llu%k\n", 0xcccc66, pfallocator_get_used_ram(), 0xffffff);
+    page_table_init(offset, (uint64_t)_kernel_start, (uint64_t)_kernel_end);
 
     interrupts_init();
     pic_remap();
+    sti();
 
-    acpi_init(rsdp, hhdm_request.response->offset);
+    heap_init((void*)0x0000100000000000, 0x10, offset);
+    timer_init(100);
 
-    // keyboard_pic_start();
+    printkf_info("FREE RAM: %k%llu%k\n", 0xcccc66, pfallocator_get_free_ram(), 0xffffff);
+    printkf_info("USED RAM: %k%llu%k\n", 0xcccc66, pfallocator_get_used_ram(), 0xffffff);
+
+    acpi_init(rsdp, offset);
+
+    printkf_info("Loading: [");
+    for(int i = 0; i < 50; i++) {
+        printkf("=");
+        timer_sleep(10);
+    }
+    printkf("] Done!\n");
 
 
     hcf();

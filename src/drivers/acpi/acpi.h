@@ -3,16 +3,15 @@
 #include <stdint.h>
 
 typedef struct {
-    char signature[8];          // 0-7: "RSD PTR "
-    uint8_t checksum;           // 8: Checksum
-    char oem_id[6];             // 9-14: OEM ID
-    uint8_t revision;           // 15: Revision
-    uint32_t rsdt_address;      // 16-19: RSDT physical address
-    // ACPI 2.0+ fields below
-    uint32_t length;            // 20-23: Length
-    uint64_t xsdt_address;      // 24-31: XSDT physical address
-    uint8_t extended_checksum;  // 32: Extended checksum
-    uint8_t reserved[3];        // 33-35: Reserved
+    char signature[8];
+    uint8_t checksum;
+    char oem_id[6];
+    uint8_t revision;
+    uint32_t rsdt_address;
+    uint32_t length;
+    uint64_t xsdt_address;
+    uint8_t extended_checksum;
+    uint8_t reserved[3];
 } __attribute__((packed)) rsdp2_t;
 
 typedef struct {

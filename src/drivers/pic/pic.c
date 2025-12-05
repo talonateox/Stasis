@@ -26,3 +26,23 @@ void pic_remap() {
     outb(PIC2_DATA, a2);
     printkf_ok("PIC Remapped\n");
 }
+
+void pic_set_mask(uint8_t irq, bool masked) {
+    uint16_t port;
+    uint8_t value;
+
+    if(irq < 8) {
+        port = PIC1_DATA;
+    } else {
+        port = PIC2_DATA;
+        irq -= 8;
+    }
+
+    if(masked) {
+        value = inb(port) | (1 << irq);
+    } else {
+        value = inb(port) & ~(1 << irq);
+    }
+
+    outb(port, value);
+}

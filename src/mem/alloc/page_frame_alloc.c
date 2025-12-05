@@ -32,20 +32,20 @@ void pfallocator_init(size_t offset) {
     uint64_t bitmap_size = mem_size / PAGE_SIZE / 8 + 1;
 
     pfallocator_init_bitmap(bitmap_size, largest_free_segment);
-    
+
     free_memory = 0;
     used_memory = 0;
 
     for(size_t i = 0; i < _g_alloc.bitmap.size * 8; i++) {
         bitmap_set(&_g_alloc.bitmap, i, true);
     }
-    
+
     for(size_t i = 0; i < memmap_get_entry_count(); i++) {
         struct limine_memmap_entry* entry = memmap_get_entry(i);
         if(entry->type == LIMINE_MEMMAP_USABLE) {
             void* virt_addr = (void*)(entry->base + offset);
             uint64_t page_count = entry->length / PAGE_SIZE;
-            
+
             for(uint64_t j = 0; j < page_count; j++) {
                 void* page = (void*)((uint64_t)virt_addr + j * PAGE_SIZE);
                 uint64_t index = ((uint64_t)page - offset) / PAGE_SIZE;
@@ -56,7 +56,7 @@ void pfallocator_init(size_t offset) {
             }
         }
     }
-    
+
     uint64_t bitmap_pages = (bitmap_size + PAGE_SIZE - 1) / PAGE_SIZE;
     pfallocator_lock_pages(largest_free_segment, bitmap_pages);
 }
@@ -74,7 +74,7 @@ void* pfallocator_request_page() {
     for(; _g_alloc.page_index < _g_alloc.bitmap.size * 8; _g_alloc.page_index++) {
         uint64_t i = _g_alloc.page_index;
         if(bitmap_get(&_g_alloc.bitmap, i) == true) continue;
-        
+
         void* addr = (void*)(i * PAGE_SIZE + _g_alloc.offset);
         pfallocator_lock_page(addr);
         return addr;
@@ -85,13 +85,13 @@ void* pfallocator_request_page() {
 
 void pfallocator_free_page(void* address) {
     if((uint64_t)address < _g_alloc.offset) return;
-    
+
     uint64_t i = ((uint64_t)address - _g_alloc.offset) / PAGE_SIZE;
-    
+
     if(i >= _g_alloc.bitmap.size * 8) return;
-    
+
     if(bitmap_get(&_g_alloc.bitmap, i) == false) return;
-    
+
     bitmap_set(&_g_alloc.bitmap, i, false);
     free_memory += 4096;
     used_memory -= 4096;
@@ -107,13 +107,13 @@ void pfallocator_free_pages(void* address, uint64_t count) {
 
 void pfallocator_lock_page(void* address) {
     if((uint64_t)address < _g_alloc.offset) return;
-    
+
     uint64_t i = ((uint64_t)address - _g_alloc.offset) / PAGE_SIZE;
-    
+
     if(i >= _g_alloc.bitmap.size * 8) return;
-    
+
     if(bitmap_get(&_g_alloc.bitmap, i) == true) return;
-    
+
     bitmap_set(&_g_alloc.bitmap, i, true);
     free_memory -= 4096;
     used_memory += 4096;

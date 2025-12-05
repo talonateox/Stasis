@@ -31,7 +31,7 @@ sdt_header_t* acpi_find_table(rsdp2_t* rsdp, uint64_t offset, const char* signat
 
         size_t entry_count = (rsdt->length - sizeof(sdt_header_t)) / 4;
 
-        for (int i = 0; i < entry_count; i++) {
+        for (size_t i = 0; i < entry_count; i++) {
             uint32_t phys_addr = *(uint32_t*)((uint64_t)rsdt + sizeof(sdt_header_t) + (i * 4));
 
             if (phys_addr == 0) continue;
@@ -61,7 +61,7 @@ sdt_header_t* acpi_find_table(rsdp2_t* rsdp, uint64_t offset, const char* signat
 
         size_t entry_count = (xsdt->length - sizeof(sdt_header_t)) / 8;
 
-        for (int i = 0; i < entry_count; i++) {
+        for (size_t i = 0; i < entry_count; i++) {
             uint64_t phys_addr = *(uint64_t*)((uint64_t)xsdt + sizeof(sdt_header_t) + (i * 8));
 
             if (phys_addr == 0) continue;
