@@ -3,6 +3,7 @@
 #include <stddef.h>
 #include "../../io/io.h"
 #include "../pic/pic.h"
+#include "../../io/terminal.h"
 
 static uint64_t pit_ticks = 0;
 static void (*pit_callback)() = NULL;

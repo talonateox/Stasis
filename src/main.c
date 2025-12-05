@@ -15,6 +15,9 @@
 
 #include "interrupts/interrupts.h"
 
+#include "task/task.h"
+#include "task/scheduler.h"
+
 #include "drivers/pic/pic.h"
 #include "drivers/timer/timer.h"
 #include "drivers/keyboard/keyboard.h"
@@ -58,6 +61,26 @@ static volatile uint64_t limine_requests_end_marker[] = LIMINE_REQUESTS_END_MARK
 static void hcf(void) {
     for (;;) {
         asm ("hlt");
+    }
+}
+
+void task1_func() {
+    uint64_t counter = 0;
+    while (1) {
+        if (counter % 1000000000 == 0) {
+            printkf("[Task 1] counter = %d\n", counter / 100000);
+        }
+        counter++;
+    }
+}
+
+void task2_func(void) {
+    uint64_t counter = 0;
+    while (1) {
+        if (counter % 100000000 == 0) {
+            printkf("[Task 2] counter = %d\n", counter / 100000);
+        }
+        counter++;
     }
 }
 
@@ -105,20 +128,25 @@ void kmain(void) {
     sti();
 
     heap_init((void*)0x0000100000000000, 0x10, offset);
-    timer_init(100);
 
     printkf_info("FREE RAM: %k%llu%k\n", 0xcccc66, pfallocator_get_free_ram(), 0xffffff);
     printkf_info("USED RAM: %k%llu%k\n", 0xcccc66, pfallocator_get_used_ram(), 0xffffff);
 
     acpi_init(rsdp, offset);
 
-    printkf_info("Loading: [");
-    for(int i = 0; i < 50; i++) {
-        printkf("=");
-        timer_sleep(10);
-    }
-    printkf("] Done!\n");
+    timer_init(100);
+    task_init();
+    scheduler_init();
 
+    timer_set_callback(scheduler_schedule);
+
+    task_t* t1 = task_create(task1_func, 16384);
+    task_t* t2 = task_create(task2_func, 16384);
+    printkf_info("Task 1: stack %p-%p\n", t1->stack, (uint64_t)t1->stack + t1->stack_size);
+    printkf_info("Task 2: stack %p-%p\n", t2->stack, (uint64_t)t2->stack + t2->stack_size);
+    scheduler_add_task(t1);
+    scheduler_add_task(t2);
+    scheduler_enable();
 
     hcf();
 }

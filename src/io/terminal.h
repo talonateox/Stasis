@@ -3,7 +3,7 @@
 #include "../limine.h"
 #include <stddef.h>
 
-#include "../arch/x86_64/registers.h"
+#include "../interrupts/interrupts.h"
 
 typedef struct {
     size_t x, y;
