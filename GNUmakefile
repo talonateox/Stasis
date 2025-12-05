@@ -113,7 +113,7 @@ clean:
 bin/$(OUTPUT).iso: bin/$(OUTPUT)
 	rm -rf iso_root
 	mkdir -p iso_root
-    
+
 	mkdir -p iso_root/boot
 	cp -v bin/$(OUTPUT) iso_root/boot/kImg
 	mkdir -p iso_root/boot/limine
@@ -130,7 +130,7 @@ bin/$(OUTPUT).iso: bin/$(OUTPUT)
 		-efi-boot-part --efi-boot-image --protective-msdos-label\
 		iso_root -o bin/$(OUTPUT).iso
 	./limine/limine bios-install bin/$(OUTPUT).iso
-    
+
 .PHONY: run
 run: bin/$(OUTPUT).iso
-	qemu-system-x86_64 -cdrom bin/$(OUTPUT).iso -m 4G -cpu qemu64 -net none
+	qemu-system-x86_64 -cdrom bin/$(OUTPUT).iso -m 512M -cpu host -enable-kvm -machine q35 -net none

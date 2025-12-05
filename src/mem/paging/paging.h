@@ -31,3 +31,4 @@ void page_direntry_set_address(page_direntry_t* entry, uint64_t address);
 uint64_t page_direntry_get_address(page_direntry_t* entry);
 
 void page_table_init(uint64_t offset, uint64_t kernel_start, uint64_t kernel_end);
+void page_map_memory(void* virt, void* phys);

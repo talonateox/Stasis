@@ -255,13 +255,13 @@ void printkf(const char* fmt, ...) {
 }
 
 void panic(const char* fmt, ...) {
-    memset(_g_term.fb->address, 0, _g_term.fb->height * _g_term.fb->pitch);
+    // memset(_g_term.fb->address, 0, _g_term.fb->height * _g_term.fb->pitch);
 
-    _g_term.x = 0;
-    _g_term.y = 1;
+    // _g_term.x = 0;
+    // _g_term.y = 1;
 
     terminal_set_fg(0xff0000);
-    putks("-------------------------------------\n");
+    putks("\n-------------------------------------\n");
     putks("        KERNEL PANIC\n");
     putks("-------------------------------------\n\n");
     terminal_set_fg(0xffffff);
@@ -277,12 +277,12 @@ void panic(const char* fmt, ...) {
 }
 
 void panic_with_frame(struct interrupt_frame* frame, uint64_t error_code, const char* msg) {
-    memset(_g_term.fb->address, 0, _g_term.fb->height * _g_term.fb->pitch);
-    _g_term.x = 0;
-    _g_term.y = 1;
+    // memset(_g_term.fb->address, 0, _g_term.fb->height * _g_term.fb->pitch);
+    // _g_term.x = 0;
+    // _g_term.y = 1;
 
     terminal_set_fg(0xff0000);
-    putks("-------------------------------------\n");
+    putks("\n-------------------------------------\n");
     putks("        KERNEL PANIC\n");
     putks("-------------------------------------\n\n");
     terminal_set_fg(0xffffff);

@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
+#include "drivers/acpi/acpi.h"
 #include "limine.h"
 
 #include "io/terminal.h"
@@ -40,6 +41,12 @@ static volatile struct limine_hhdm_request hhdm_request = {
     .revision = 4
 };
 
+__attribute__((used, section(".limine_requests")))
+static volatile struct limine_rsdp_request rsdp_request = {
+    .id = LIMINE_RSDP_REQUEST_ID,
+    .revision = 4
+};
+
 __attribute__((used, section(".limine_requests_start")))
 static volatile uint64_t limine_requests_start_marker[] = LIMINE_REQUESTS_START_MARKER;
 
@@ -69,13 +76,11 @@ void kmain(void) {
     printkf("           STASIS KERNEL\n");
     printkf("-------------------------------------\n\n");
 
-    if(memmap_request.response == NULL) {
-        panic("MEMMAP REQUEST INVALID!");
-    }
+    if(memmap_request.response == NULL) panic("MEMMAP REQUEST INVALID!");
+    if(hhdm_request.response == NULL) panic("HHDM REQUEST INVALID!");
+    if(rsdp_request.response == NULL) panic("RSDP REQUEST INVALID");
 
-    if(hhdm_request.response == NULL) {
-        panic("HHDM REQUEST INVALID!");
-    }
+    rsdp2_t* rsdp = (rsdp2_t*)rsdp_request.response->address;
 
     printkf_info("Loading GDT...\n");
     gdt_init();
@@ -97,7 +102,11 @@ void kmain(void) {
 
     interrupts_init();
     pic_remap();
-    keyboard_pic_start();
+
+    acpi_init(rsdp, hhdm_request.response->offset);
+
+    // keyboard_pic_start();
+
 
     hcf();
 }

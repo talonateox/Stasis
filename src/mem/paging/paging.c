@@ -75,6 +75,10 @@ void page_table_init(uint64_t offset, uint64_t kernel_start, uint64_t kernel_end
     asm volatile("mov %0, %%cr3" : : "r" (pml4_phys) : "memory");
 }
 
+void page_map_memory(void* virt, void* phys) {
+    page_table_map(&_g_page_table_manager,  virt, phys);
+}
+
 void page_direntry_set_flag(page_direntry_t* entry, page_direntry_flag_t flag, bool enabled) {
     uint64_t bit = (uint64_t)1 << flag;
     entry->value &= ~bit;
