@@ -22,6 +22,8 @@
 #include "drivers/timer/timer.h"
 #include "drivers/keyboard/keyboard.h"
 
+#include "tasks/shell.h"
+
 extern uint8_t _kernel_start[];
 extern uint8_t _kernel_end[];
 
@@ -58,23 +60,9 @@ static volatile uint64_t limine_requests_start_marker[] = LIMINE_REQUESTS_START_
 __attribute__((used, section(".limine_requests_end")))
 static volatile uint64_t limine_requests_end_marker[] = LIMINE_REQUESTS_END_MARKER;
 
-static void hcf(void) {
+static void hcf() {
     for(;;) {
         asm ("hlt");
-    }
-}
-
-void keyboard_test_task(void) {
-    printkf("Keyboard test started. Type something:\n");
-
-    while(1) {
-        char c = keyboard_getchar();
-
-        putkc(c);
-
-        if(c == '\n') {
-            printkf("You pressed Enter!\n");
-        }
     }
 }
 
@@ -136,7 +124,7 @@ void kmain(void) {
     keyboard_init();
     keyboard_pic_start();
 
-    task_t* task = task_create(keyboard_test_task, 16384);
+    task_t* task = task_create(shell, 16384);
     scheduler_add_task(task);
     scheduler_enable();
 
