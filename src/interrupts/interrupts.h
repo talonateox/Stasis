@@ -13,9 +13,9 @@ struct interrupt_frame {
 void interrupts_init();
 
 static inline void sti() {
-    asm volatile("sti" ::: "memory");
+    asm volatile("sti");
 }
 
 static inline void cli() {
-    asm volatile("cli" ::: "memory" );
+    asm volatile("cli");
 }

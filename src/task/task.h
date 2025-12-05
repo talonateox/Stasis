@@ -28,6 +28,7 @@ typedef struct task {
     uint64_t stack_size;
     void (*entry_point)(void);
     struct task* next;
+    uint64_t wake_tick;
 } task_t;
 
 void task_init();
@@ -35,3 +36,6 @@ task_t* task_create(void (*entry_point)(), uint64_t stack_size);
 task_t* task_current();
 void task_switch(task_t* next);
 void task_yield();
+void task_block();
+void task_unblock(task_t* task);
+void sleep_ms(uint64_t ms);

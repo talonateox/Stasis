@@ -26,7 +26,7 @@ void terminal_init(struct limine_framebuffer* fb) {
 }
 
 static void draw_pixel(terminal_t* term, size_t x, size_t y, uint32_t color) {
-    if (x >= term->fb->width || y >= term->fb->height) {
+    if(x >= term->fb->width || y >= term->fb->height) {
         return;
     }
 

@@ -24,6 +24,7 @@ void gp_fault_handler(struct interrupt_frame* frame, uint64_t error_code) {
 
 __attribute__((interrupt))
 void irq0_handler(struct interrupt_frame* frame) {
+    (void)frame;
     outb(PIC1_COMMAND, PIC_EOI);
     pit_interrupt_handler();
 }

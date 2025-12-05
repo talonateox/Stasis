@@ -4,6 +4,7 @@
 #include <stddef.h>
 
 #include "../io/terminal.h"
+#include "../drivers/timer/timer.h"
 #include "../sync/spinlock.h"
 
 static task_t* ready_queue_head = NULL;
@@ -19,7 +20,7 @@ void scheduler_init(void) {
 }
 
 void scheduler_add_task(task_t* task) {
-    if (task == NULL) {
+    if(task == NULL) {
         return;
     }
 
@@ -27,7 +28,7 @@ void scheduler_add_task(task_t* task) {
 
     task->next = NULL;
 
-    if (ready_queue_tail == NULL) {
+    if(ready_queue_tail == NULL) {
         ready_queue_head = task;
         ready_queue_tail = task;
     } else {
@@ -39,13 +40,13 @@ void scheduler_add_task(task_t* task) {
 }
 
 void scheduler_remove_task(task_t* task) {
-    if (task == NULL || ready_queue_head == NULL) {
+    if(task == NULL || ready_queue_head == NULL) {
         return;
     }
 
     uint64_t flags = spin_lock(&scheduler_lock);
 
-    if (ready_queue_head == NULL) {
+    if(ready_queue_head == NULL) {
         spin_unlock(&scheduler_lock, flags);
         return;
     }
@@ -53,15 +54,15 @@ void scheduler_remove_task(task_t* task) {
     task_t* prev = NULL;
     task_t* curr = ready_queue_head;
 
-    while (curr != NULL) {
-        if (curr == task) {
-            if (prev == NULL) {
+    while(curr != NULL) {
+        if(curr == task) {
+            if(prev == NULL) {
                 ready_queue_head = curr->next;
             } else {
                 prev->next = curr->next;
             }
 
-            if (curr == ready_queue_tail) {
+            if(curr == ready_queue_tail) {
                 ready_queue_tail = prev;
             }
 
@@ -75,50 +76,91 @@ void scheduler_remove_task(task_t* task) {
     spin_unlock(&scheduler_lock, flags);
 }
 
+static void wake_sleeping_tasks(void) {
+    uint64_t current_tick = timer_get_ticks();
+    task_t* task = ready_queue_head;
+
+    while(task != NULL) {
+        if(task->state == TASK_BLOCKED && task->wake_tick != 0) {
+            if(current_tick >= task->wake_tick) {
+                task->state = TASK_READY;
+                task->wake_tick = 0;
+            }
+        }
+        task = task->next;
+    }
+}
+
 void scheduler_schedule() {
-    if (!scheduler_enabled) {
+    if(!scheduler_enabled) {
         return;
     }
 
+restart: ;
     uint64_t flags = spin_lock(&scheduler_lock);
 
     task_t* current = task_current();
     task_t* next = NULL;
 
-    task_t* start = (current != NULL && current->next != NULL)
-                    ? current->next
-                    : ready_queue_head;
+    uint64_t current_tick = timer_get_ticks();
+    for(task_t* t = ready_queue_head; t != NULL; t = t->next) {
+        if(t->state == TASK_BLOCKED && t->wake_tick != 0) {
+            if(current_tick >= t->wake_tick) {
+                t->state = TASK_READY;
+                t->wake_tick = 0;
+            }
+        }
+    }
+
+    task_t* start;
+    if(current != NULL && current->next != NULL) {
+        start = current->next;
+    } else {
+        start = ready_queue_head;
+    }
 
     task_t* candidate = start;
+    int checked = 0;
+    int total_tasks = 0;
 
-    do {
-        if (candidate == NULL) {
+    for(task_t* t = ready_queue_head; t != NULL; t = t->next) {
+        total_tasks++;
+    }
+
+    while(checked < total_tasks) {
+        if(candidate == NULL) {
             candidate = ready_queue_head;
         }
 
-        if (candidate == NULL) {
+        if(candidate == NULL) {
             break;
         }
 
-        if (candidate->state == TASK_READY ||
-            (candidate->state == TASK_RUNNING && candidate == current)) {
+        if(candidate->state == TASK_READY) {
             next = candidate;
             break;
         }
 
         candidate = candidate->next;
-        if (candidate == NULL) {
+        if(candidate == NULL) {
             candidate = ready_queue_head;
         }
-
-    } while (candidate != start);
+        checked++;
+    }
 
     spin_unlock(&scheduler_lock, flags);
 
-    if (next != NULL && next != current) {
+    if(next != NULL) {
         task_switch(next);
+        asm volatile("sti");
+    } else if(current != NULL && current->state == TASK_RUNNING) {
+        asm volatile("sti");
+    } else {
+        asm volatile("sti; hlt");
+        goto restart;
     }
 }
+
 
 void scheduler_enable() {
     scheduler_enabled = 1;
@@ -134,5 +176,13 @@ int scheduler_is_enabled() {
 }
 
 void scheduler_tick() {
+    if(!scheduler_enabled) {
+        return;
+    }
+
+    uint64_t flags = spin_lock(&scheduler_lock);
+    wake_sleeping_tasks();
+    spin_unlock(&scheduler_lock, flags);
+
     scheduler_schedule();
 }

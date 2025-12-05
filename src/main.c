@@ -59,37 +59,33 @@ __attribute__((used, section(".limine_requests_end")))
 static volatile uint64_t limine_requests_end_marker[] = LIMINE_REQUESTS_END_MARKER;
 
 static void hcf(void) {
-    for (;;) {
+    for(;;) {
         asm ("hlt");
     }
 }
 
-void task1_func() {
-    uint64_t counter = 0;
-    while (1) {
-        if (counter % 1000000000 == 0) {
-            printkf("[Task 1] counter = %d\n", counter / 100000);
-        }
-        counter++;
+void task1_func(void) {
+    int counter = 0;
+    while(1) {
+        printkf("[Task 1] counter = %d\n", counter++);
+        sleep_ms(1000);
     }
 }
 
 void task2_func(void) {
-    uint64_t counter = 0;
-    while (1) {
-        if (counter % 100000000 == 0) {
-            printkf("[Task 2] counter = %d\n", counter / 100000);
-        }
-        counter++;
+    int counter = 0;
+    while(1) {
+        printkf("[Task 2] counter = %d\n", counter++);
+        sleep_ms(100);
     }
 }
 
 void kmain(void) {
-    if (LIMINE_BASE_REVISION_SUPPORTED(limine_base_revision) == false) {
+    if(LIMINE_BASE_REVISION_SUPPORTED(limine_base_revision) == false) {
         hcf();
     }
 
-    if (framebuffer_request.response == NULL
+    if(framebuffer_request.response == NULL
      || framebuffer_request.response->framebuffer_count < 1) {
         hcf();
     }
@@ -138,7 +134,7 @@ void kmain(void) {
     task_init();
     scheduler_init();
 
-    timer_set_callback(scheduler_schedule);
+    timer_set_callback(scheduler_tick);
 
     task_t* t1 = task_create(task1_func, 16384);
     task_t* t2 = task_create(task2_func, 16384);
