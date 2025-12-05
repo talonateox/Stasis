@@ -4,6 +4,8 @@
 #include "../io/terminal.h"
 #include "../sync/spinlock.h"
 #include "../drivers/timer/timer.h"
+#include "../usermode/usermode.h"
+#include "../arch/x86_64/gdt/gdt.h"
 
 #include <stddef.h>
 
@@ -16,7 +18,7 @@ static spinlock_t task_lock = {0};
 extern void scheduler_schedule();
 extern void task_switch_impl(cpu_state_t** old_context, cpu_state_t* new_context);
 
-static void task_entry_wrapper(void) {
+static void task_entry_wrapper() {
     asm volatile("sti");
 
     task_t* self = task_current();
@@ -33,13 +35,28 @@ static void task_entry_wrapper(void) {
     }
 }
 
-void task_init(void) {
+static void user_task_entry_wrapper() {
+    task_t* self = task_current();
+    if(self == NULL || self->entry_point == NULL) {
+        task_exit();
+    }
+
+    uint64_t user_rsp = (uint64_t)self->user_stack + self->user_stack_size;
+    user_rsp &= ~0xFULL;
+
+    uint64_t kernel_stack_top = (uint64_t)self->stack + self->stack_size;
+    tss_set_kernel_stack(kernel_stack_top);
+
+    jump_to_usermode((uint64_t)self->entry_point, user_rsp);
+}
+
+void task_init() {
     current_task = NULL;
     task_list = NULL;
     next_pid = 1;
 }
 
-task_t* task_create(void (*entry_point)(void), uint64_t stack_size) {
+task_t* task_create(void (*entry_point)(), uint64_t stack_size) {
     task_t* task = (task_t*)malloc(sizeof(task_t));
     if(task == NULL) {
         printkf_error("task_create(): failed to allocate task\n");
@@ -58,6 +75,9 @@ task_t* task_create(void (*entry_point)(void), uint64_t stack_size) {
     task->state = TASK_READY;
     task->entry_point = entry_point;
     task->wake_tick = 0;
+    task->user_stack = NULL;
+    task->user_stack_size = 0;
+    task->is_user = 0;
 
     uint64_t stack_top = (uint64_t)task->stack + stack_size;
 
@@ -82,7 +102,61 @@ task_t* task_create(void (*entry_point)(void), uint64_t stack_size) {
     return task;
 }
 
-task_t* task_current(void) {
+task_t* task_create_user(void (*entry_point)(), uint64_t stack_size) {
+    task_t* task = (task_t*)malloc(sizeof(task_t));
+    if(task == NULL) {
+        printkf_error("task_create_user(): failed to allocate task\n");
+        return NULL;
+    }
+
+    task->stack = malloc(8192);
+    if(task->stack == NULL) {
+        printkf_error("task_create_user(): failed to allocate kernel stack\n");
+        free(task);
+        return NULL;
+    }
+    task->stack_size = 8192;
+
+    task->user_stack = malloc(stack_size);
+    if(task->user_stack == NULL) {
+        printkf_error("task_create_user(): failed to allocate user stack\n");
+        free(task->stack);
+        free(task);
+        return NULL;
+    }
+    task->user_stack_size = stack_size;
+
+    task->pid = next_pid++;
+    task->state = TASK_READY;
+    task->entry_point = entry_point;
+    task->wake_tick = 0;
+    task->is_user = 1;
+
+    uint64_t kstack_top = (uint64_t)task->stack + task->stack_size;
+    kstack_top &= ~0xFULL;
+
+    uint64_t* sp = (uint64_t*)kstack_top;
+
+    *--sp = (uint64_t)user_task_entry_wrapper;
+
+    *--sp = 0;
+    *--sp = 0;
+    *--sp = 0;
+    *--sp = 0;
+    *--sp = 0;
+    *--sp = 0;
+
+    task->context = (cpu_state_t*)sp;
+
+    task->next = task_list;
+    task_list = task;
+
+    printkf_info("Created user task PID %d\n", task->pid);
+
+    return task;
+}
+
+task_t* task_current() {
     return current_task;
 }
 
@@ -100,6 +174,9 @@ void task_switch(task_t* next) {
     next->state = TASK_RUNNING;
     current_task = next;
 
+    uint64_t kernel_stack_top = (uint64_t)next->stack + next->stack_size;
+    tss_set_kernel_stack(kernel_stack_top);
+
     if(old_task != NULL) {
         task_switch_impl(&old_task->context, next->context);
     } else {
@@ -107,7 +184,7 @@ void task_switch(task_t* next) {
     }
 }
 
-void task_yield(void) {
+void task_yield() {
     scheduler_schedule();
 }
 
@@ -155,7 +232,7 @@ void sleep_ms(uint64_t ms) {
     scheduler_schedule();
 }
 
-void task_exit(void) {
+void task_exit() {
     if(current_task != NULL) {
         current_task->state = TASK_TERMINATED;
     }

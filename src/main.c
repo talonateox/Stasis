@@ -22,7 +22,11 @@
 #include "drivers/timer/timer.h"
 #include "drivers/keyboard/keyboard.h"
 
-#include "tasks/shell.h"
+#include "programs/user_shell.h"
+#include "usermode/usermode.h"
+
+#include "syscall/syscall.h"
+#include "usermode/usermode.h"
 
 extern uint8_t _kernel_start[];
 extern uint8_t _kernel_end[];
@@ -66,7 +70,7 @@ static void hcf() {
     }
 }
 
-void kmain(void) {
+void kmain() {
     if(LIMINE_BASE_REVISION_SUPPORTED(limine_base_revision) == false) {
         hcf();
     }
@@ -124,8 +128,10 @@ void kmain(void) {
     keyboard_init();
     keyboard_pic_start();
 
-    task_t* task = task_create(shell, 16384);
-    scheduler_add_task(task);
+    syscall_init();
+
+    task_t* shell = task_create_user(user_shell, 16384);
+    scheduler_add_task(shell);
     scheduler_enable();
 
     hcf();

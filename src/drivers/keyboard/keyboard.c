@@ -4,7 +4,6 @@
 
 #include "../../io/io.h"
 #include "../../io/terminal.h"
-#include "../../sync/spinlock.h"
 #include "../../task/task.h"
 #include "../pic/pic.h"
 
@@ -13,7 +12,6 @@
 static char buffer[KEYBOARD_BUFFER_SIZE];
 static size_t buffer_head = 0;
 static size_t buffer_tail = 0;
-static spinlock_t buffer_lock = {0};
 
 static task_t* waiting_task = NULL;
 

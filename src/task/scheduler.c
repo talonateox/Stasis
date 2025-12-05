@@ -13,7 +13,7 @@ static int scheduler_enabled = 0;
 
 static spinlock_t scheduler_lock = {0};
 
-void scheduler_init(void) {
+void scheduler_init() {
     ready_queue_head = NULL;
     ready_queue_tail = NULL;
     scheduler_enabled = 0;
@@ -76,7 +76,7 @@ void scheduler_remove_task(task_t* task) {
     spin_unlock(&scheduler_lock, flags);
 }
 
-static void wake_sleeping_tasks(void) {
+static void wake_sleeping_tasks() {
     uint64_t current_tick = timer_get_ticks();
     task_t* task = ready_queue_head;
 

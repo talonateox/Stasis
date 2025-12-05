@@ -11,7 +11,7 @@ static inline uint32_t atomic_exchange(volatile uint32_t* target, uint32_t new) 
     return old;
 }
 
-static inline uint64_t read_rflags(void) {
+static inline uint64_t read_rflags() {
     uint64_t flags;
     asm volatile(
         "pushfq\n\t"
@@ -37,7 +37,7 @@ static inline void cli_no_reorder() {
     asm volatile("cli" ::: "memory");
 }
 
-static inline void cpu_pause(void) {
+static inline void cpu_pause() {
     asm volatile("pause");
 }
 
