@@ -1,11 +1,16 @@
 #include "scheduler.h"
 #include "task.h"
-#include "../io/terminal.h"
+
 #include <stddef.h>
+
+#include "../io/terminal.h"
+#include "../sync/spinlock.h"
 
 static task_t* ready_queue_head = NULL;
 static task_t* ready_queue_tail = NULL;
 static int scheduler_enabled = 0;
+
+static spinlock_t scheduler_lock = {0};
 
 void scheduler_init(void) {
     ready_queue_head = NULL;
@@ -18,6 +23,8 @@ void scheduler_add_task(task_t* task) {
         return;
     }
 
+    uint64_t flags = spin_lock(&scheduler_lock);
+
     task->next = NULL;
 
     if (ready_queue_tail == NULL) {
@@ -27,10 +34,19 @@ void scheduler_add_task(task_t* task) {
         ready_queue_tail->next = task;
         ready_queue_tail = task;
     }
+
+    spin_unlock(&scheduler_lock, flags);
 }
 
 void scheduler_remove_task(task_t* task) {
     if (task == NULL || ready_queue_head == NULL) {
+        return;
+    }
+
+    uint64_t flags = spin_lock(&scheduler_lock);
+
+    if (ready_queue_head == NULL) {
+        spin_unlock(&scheduler_lock, flags);
         return;
     }
 
@@ -50,17 +66,21 @@ void scheduler_remove_task(task_t* task) {
             }
 
             task->next = NULL;
+            spin_unlock(&scheduler_lock, flags);
             return;
         }
         prev = curr;
         curr = curr->next;
     }
+    spin_unlock(&scheduler_lock, flags);
 }
 
 void scheduler_schedule() {
     if (!scheduler_enabled) {
         return;
     }
+
+    uint64_t flags = spin_lock(&scheduler_lock);
 
     task_t* current = task_current();
     task_t* next = NULL;
@@ -92,6 +112,8 @@ void scheduler_schedule() {
         }
 
     } while (candidate != start);
+
+    spin_unlock(&scheduler_lock, flags);
 
     if (next != NULL && next != current) {
         task_switch(next);

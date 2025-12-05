@@ -3,11 +3,14 @@
 #include "../paging/paging.h"
 #include "page_frame_alloc.h"
 #include "../../io/terminal.h"
+#include "../../sync/spinlock.h"
 
 void* heap_start;
 void* heap_end;
 heap_segment_hdr_t* last_hdr;
 size_t heap_offset;
+
+static spinlock_t heap_lock = {0};
 
 void heap_init(void* base, size_t page_count, size_t offset) {
     printkf_info("Initializing heap at %p...\n", base);
@@ -72,6 +75,8 @@ void* malloc(size_t size) {
 
     if(size == 0) return NULL;
 
+    uint64_t flags = spin_lock(&heap_lock);
+
     heap_segment_hdr_t* curr = (heap_segment_hdr_t*)heap_start;
     while(true) {
         if(curr->free) {
@@ -80,6 +85,7 @@ void* malloc(size_t size) {
                     heap_segment_split(curr, size);
                 }
                 curr->free = false;
+                spin_unlock(&heap_lock, flags);
                 return (void*)((uint64_t)curr + sizeof(heap_segment_hdr_t));
             }
         }
@@ -87,20 +93,28 @@ void* malloc(size_t size) {
         curr = curr->next;
     }
     heap_expand(size);
+    spin_unlock(&heap_lock, flags);
     return malloc(size);
 }
 
 void free(void* address) {
+    if(address == NULL) return;
+
+    uint64_t flags = spin_lock(&heap_lock);
+
     heap_segment_hdr_t* seg = (heap_segment_hdr_t*)((uint64_t)address - sizeof(heap_segment_hdr_t));
 
     if(seg->free) {
-        printkf_error("free: double free detected at %p\n", address);
+        printkf_error("free(): double free detected at %p\n", address);
+        spin_unlock(&heap_lock, flags);
         return;
     }
 
     seg->free = true;
     heap_segment_combine_forward(seg);
     heap_segment_combine_backward(seg);
+
+    spin_unlock(&heap_lock, flags);
 }
 
 void heap_segment_combine_forward(heap_segment_hdr_t* hdr) {

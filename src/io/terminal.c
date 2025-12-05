@@ -4,8 +4,11 @@
 
 #include "../font/glyphs.h"
 #include "../std/string.h"
+#include "../sync/spinlock.h"
 
 terminal_t _g_term;
+
+static spinlock_t terminal_lock = {0};
 
 void terminal_init(struct limine_framebuffer* fb) {
     _g_term = (terminal_t){0};
@@ -248,10 +251,12 @@ void vprintkf(const char* fmt, va_list args) {
 }
 
 void printkf(const char* fmt, ...) {
+    uint64_t flags = spin_lock(&terminal_lock);
     va_list args;
     va_start(args, fmt);
     vprintkf(fmt, args);
     va_end(args);
+    spin_unlock(&terminal_lock, flags);
 }
 
 void panic(const char* fmt, ...) {
@@ -298,6 +303,8 @@ void panic_with_frame(struct interrupt_frame* frame, uint64_t error_code, const 
 }
 
 void printkf_info(const char* fmt, ...) {
+    uint64_t flags = spin_lock(&terminal_lock);
+
     terminal_set_fg(0x00aaff);
     putks("[INFO] ");
     terminal_set_fg(0xffffff);
@@ -306,9 +313,13 @@ void printkf_info(const char* fmt, ...) {
     va_start(args, fmt);
     vprintkf(fmt, args);
     va_end(args);
+
+    spin_unlock(&terminal_lock, flags);
 }
 
 void printkf_ok(const char* fmt, ...) {
+    uint64_t flags = spin_lock(&terminal_lock);
+
     terminal_set_fg(0xaaffaa);
     putks("[ OK ] ");
     terminal_set_fg(0xffffff);
@@ -317,9 +328,13 @@ void printkf_ok(const char* fmt, ...) {
     va_start(args, fmt);
     vprintkf(fmt, args);
     va_end(args);
+
+    spin_unlock(&terminal_lock, flags);
 }
 
 void printkf_warn(const char* fmt, ...) {
+    uint64_t flags = spin_lock(&terminal_lock);
+
     terminal_set_fg(0xffaa00);
     putks("[WARN] ");
     terminal_set_fg(0xffffff);
@@ -328,9 +343,13 @@ void printkf_warn(const char* fmt, ...) {
     va_start(args, fmt);
     vprintkf(fmt, args);
     va_end(args);
+
+    spin_unlock(&terminal_lock, flags);
 }
 
 void printkf_error(const char* fmt, ...) {
+
+    uint64_t flags = spin_lock(&terminal_lock);
     terminal_set_fg(0xff0000);
     putks("[ERR ] ");
     terminal_set_fg(0xffffff);
@@ -339,4 +358,6 @@ void printkf_error(const char* fmt, ...) {
     va_start(args, fmt);
     vprintkf(fmt, args);
     va_end(args);
+
+    spin_unlock(&terminal_lock, flags);
 }
