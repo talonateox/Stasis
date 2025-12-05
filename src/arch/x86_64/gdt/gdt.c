@@ -13,7 +13,7 @@ gdt_t _g_gdt = {
     .tss = {0, 0, 0, 0x89, 0x00, 0, 0, 0},
 };
 
-static void setup_tss_descriptor(void) {
+static void setup_tss_descriptor() {
     uint64_t tss_addr = (uint64_t)&_g_tss;
     uint32_t tss_size = sizeof(tss_t) - 1;
 
@@ -27,7 +27,7 @@ static void setup_tss_descriptor(void) {
     _g_gdt.tss.reserved = 0;
 }
 
-void gdt_init(void) {
+void gdt_init() {
     _g_tss.reserved0 = 0;
     _g_tss.rsp0 = 0;
     _g_tss.rsp1 = 0;
@@ -51,7 +51,7 @@ void gdt_init(void) {
     desc.offset = (uint64_t)&_g_gdt;
     load_gdt(&desc);
 
-    asm volatile("ltr %w0" : : "r"((uint16_t)GDT_TSS));
+    asm volatile("ltr %w0" : : "r"((uint16_t)0x28));
 }
 
 void tss_set_kernel_stack(uint64_t stack) {

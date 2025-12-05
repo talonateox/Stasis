@@ -2,16 +2,6 @@
 
 #include <stdint.h>
 
-#define GDT_KERNEL_CODE 0x08
-#define GDT_KERNEL_DATA 0x10
-#define GDT_USER_DATA   0x18
-#define GDT_USER_CODE   0x20
-#define GDT_TSS         0x28
-
-// For user segments, we OR with 3 for RPL (requested privilege level)
-#define GDT_USER_DATA_RPL3  (GDT_USER_DATA | 3)  // 0x1B
-#define GDT_USER_CODE_RPL3  (GDT_USER_CODE | 3)  // 0x23
-
 typedef struct {
     uint16_t size;
     uint64_t offset;
@@ -26,7 +16,6 @@ typedef struct {
     uint8_t base2;
 } __attribute__((packed)) gdt_entry_t;
 
-// TSS descriptor is 16 bytes in long mode (spans two GDT slots)
 typedef struct {
     uint16_t limit0;
     uint16_t base0;
