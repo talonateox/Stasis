@@ -191,7 +191,6 @@ void scheduler_print_tasks() {
     uint64_t flags = spin_lock(&scheduler_lock);
     task_t* cur = ready_queue_head;
     if(cur == NULL) {
-        printkf("No tasks in ready queue\n");
         spin_unlock(&scheduler_lock, flags);
         return;
     }
