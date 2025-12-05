@@ -196,15 +196,15 @@ void scheduler_print_tasks() {
     }
 
     while(cur) {
-        const char* state_str = "UNKNOWN";
+        const char* state = "UNKNOWN";
         switch(cur->state) {
-            case TASK_READY: state_str = "READY"; break;
-            case TASK_RUNNING: state_str = "RUNNING"; break;
-            case TASK_BLOCKED: state_str = "BLOCKED"; break;
-            case TASK_TERMINATED: state_str = "TERMINATED"; break;
+            case TASK_READY: state = "READY"; break;
+            case TASK_RUNNING: state = "RUNNING"; break;
+            case TASK_BLOCKED: state = "BLOCKED"; break;
+            case TASK_TERMINATED: state = "TERMINATED"; break;
         }
 
-        printkf("%d: task=%p state=%s stack=%llu entry=%p\n", cur->pid, (void*)cur, state_str, cur->stack_size, (void*)cur->entry_point);
+        printkf("%d: task=%p state=%s stack=%llu entry=%p\n", cur->pid, (void*)cur, state, cur->stack_size, (void*)cur->entry_point);
 
         cur = cur->next;
     }
