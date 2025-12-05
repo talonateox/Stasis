@@ -64,19 +64,17 @@ static void hcf(void) {
     }
 }
 
-void task1_func(void) {
-    int counter = 0;
-    while(1) {
-        printkf("[Task 1] counter = %d\n", counter++);
-        sleep_ms(1000);
-    }
-}
+void keyboard_test_task(void) {
+    printkf("Keyboard test started. Type something:\n");
 
-void task2_func(void) {
-    int counter = 0;
     while(1) {
-        printkf("[Task 2] counter = %d\n", counter++);
-        sleep_ms(100);
+        char c = keyboard_getchar();
+
+        putkc(c);
+
+        if(c == '\n') {
+            printkf("You pressed Enter!\n");
+        }
     }
 }
 
@@ -133,15 +131,13 @@ void kmain(void) {
     timer_init(100);
     task_init();
     scheduler_init();
-
     timer_set_callback(scheduler_tick);
 
-    task_t* t1 = task_create(task1_func, 16384);
-    task_t* t2 = task_create(task2_func, 16384);
-    printkf_info("Task 1: stack %p-%p\n", t1->stack, (uint64_t)t1->stack + t1->stack_size);
-    printkf_info("Task 2: stack %p-%p\n", t2->stack, (uint64_t)t2->stack + t2->stack_size);
-    scheduler_add_task(t1);
-    scheduler_add_task(t2);
+    keyboard_init();
+    keyboard_pic_start();
+
+    task_t* task = task_create(keyboard_test_task, 16384);
+    scheduler_add_task(task);
     scheduler_enable();
 
     hcf();
