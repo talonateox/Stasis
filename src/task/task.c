@@ -151,8 +151,6 @@ task_t* task_create_user(void (*entry_point)(), uint64_t stack_size) {
     task->next = task_list;
     task_list = task;
 
-    printkf_info("Created user task PID %d\n", task->pid);
-
     return task;
 }
 
@@ -161,6 +159,7 @@ task_t* task_current() {
 }
 
 void task_switch(task_t* next) {
+        // printkf("[DEBUG] task_switch to %p (PID %d)\n", next, next ? next->pid : -1);
     if(next == NULL || next == current_task) {
         return;
     }

@@ -3,7 +3,7 @@
 #define INPUT_BUFFER_SIZE 256
 
 static char input_buffer[INPUT_BUFFER_SIZE];
-static int index = 0;
+static int input_index = 0;
 
 static int streq(const char* a, const char* b) {
     while(*a && *b) {
@@ -43,9 +43,9 @@ static void print_num(uint64_t n) {
 }
 
 static void process_command() {
-    if(index > 0 && input_buffer[index-1] == '\n') {
-        input_buffer[index-1] = '\0';
-        index--;
+    if(input_index > 0 && input_buffer[input_index-1] == '\n') {
+        input_buffer[input_index-1] = '\0';
+        input_index--;
     }
 
     if(streq(input_buffer, "help")) {
@@ -65,7 +65,7 @@ static void process_command() {
     } else if(streq(input_buffer, "exit")) {
         print("o7\n");
         exit(0);
-    } else if(index > 0) {
+    } else if(input_index > 0) {
         print("Unknown command: ");
         print(input_buffer);
         print("\nType 'help' for commands\n");
@@ -74,7 +74,7 @@ static void process_command() {
     for(int i = 0; i < INPUT_BUFFER_SIZE; i++) {
         input_buffer[i] = 0;
     }
-    index = 0;
+    input_index = 0;
 }
 
 void user_shell() {
@@ -88,18 +88,18 @@ void user_shell() {
         read(0, &c, 1);
 
         if(c == '\b') {
-            if(index > 0) {
-                index--;
-                input_buffer[index] = '\0';
+            if(input_index > 0) {
+                input_index--;
+                input_buffer[input_index] = '\0';
                 write(1, "\b \b", 3);
             }
         } else if(c == '\n') {
             write(1, "\n", 1);
-            input_buffer[index++] = '\n';
+            input_buffer[input_index++] = '\n';
             process_command();
             print("shell> ");
-        } else if(index < INPUT_BUFFER_SIZE - 1) {
-            input_buffer[index++] = c;
+        } else if(input_index < INPUT_BUFFER_SIZE - 1) {
+            input_buffer[input_index++] = c;
             write(1, &c, 1);
         }
     }
