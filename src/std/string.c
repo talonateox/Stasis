@@ -64,7 +64,6 @@ int strcmp(const char *s1, const char *s2) {
 }
 
 void strcpy(char *s1, const char *s2) {
-    char *temp = s1;
     while((*s1++ = *s2++) != '\0');
 }
 
@@ -75,4 +74,21 @@ size_t strlen(const char *str) {
         str++;
     }
     return length;
+}
+
+int streq(const char* a, const char* b) {
+    while (*a && *b) {
+        if (*a != *b) return 0;
+        a++;
+        b++;
+    }
+    return *a == *b;
+}
+
+void strcat(char* dst, const char* src) {
+    while (*dst) dst++;
+    while (*src) {
+        *dst++ = *src++;
+    }
+    *dst = '\0';
 }
