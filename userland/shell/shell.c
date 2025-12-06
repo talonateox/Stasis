@@ -1,12 +1,53 @@
-#include "../usermode/user_syscall.h"
-#include "../fs/vfs/vfs.h"
-#include "../std/string.h"
+#include "../../src/usermode/user_syscall.h"
+#include "../../src/fs/vfs/vfs.h"
 
 #define INPUT_BUFFER_SIZE 256
 
 static char input_buffer[INPUT_BUFFER_SIZE];
 static int input_index = 0;
 static char current_dir[256] = "/";
+
+int strcmp(const char *s1, const char *s2) {
+    const unsigned char *p1 = (const unsigned char *)s1;
+    const unsigned char *p2 = (const unsigned char *)s2;
+
+    while (*p1 != '\0' && *p1 == *p2) {
+        p1++;
+        p2++;
+    }
+
+    return (int)*p1 - (int)*p2;
+}
+
+void strcpy(char *s1, const char *s2) {
+    while((*s1++ = *s2++) != '\0');
+}
+
+size_t strlen(const char *str) {
+    size_t length = 0;
+    while (*str != '\0') {
+        length++;
+        str++;
+    }
+    return length;
+}
+
+int streq(const char* a, const char* b) {
+    while (*a && *b) {
+        if (*a != *b) return 0;
+        a++;
+        b++;
+    }
+    return *a == *b;
+}
+
+void strcat(char* dst, const char* src) {
+    while (*dst) dst++;
+    while (*src) {
+        *dst++ = *src++;
+    }
+    *dst = '\0';
+}
 
 static void build_path(char* result, const char* path) {
     if (path[0] == '/') {
@@ -306,7 +347,7 @@ static void process_command(void) {
     input_index = 0;
 }
 
-void user_shell(void) {
+void _start() {
     print("STASIS USER SHELL\n");
     print("Type 'help' for available commands.\n\n");
 

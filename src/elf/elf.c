@@ -50,13 +50,11 @@ elf64_phdr_t* elf_get_program_header(const void* data, int index) {
 
 int elf_load(const void* elf_data, size_t size, uint64_t* out_entry) {
     if (!elf_validate(elf_data)) {
-        printkf_error("elf_load: invalid ELF file\n");
+        printkf_error("elf_load(): invalid ELF file\n");
         return -1;
     }
 
     elf64_ehdr_t* ehdr = elf_get_header(elf_data);
-
-    printkf_info("Loading ELF: entry=0x%llx, phnum=%d\n", ehdr->e_entry, ehdr->e_phnum);
 
     for (int i = 0; i < ehdr->e_phnum; i++) {
         elf64_phdr_t* phdr = elf_get_program_header(elf_data, i);
@@ -68,13 +66,6 @@ int elf_load(const void* elf_data, size_t size, uint64_t* out_entry) {
         uint64_t memsz = phdr->p_memsz;
         uint64_t filesz = phdr->p_filesz;
         uint64_t offset = phdr->p_offset;
-
-        printkf_info("  Segment %d: vaddr=0x%llx memsz=0x%llx filesz=0x%llx flags=%s%s%s\n",
-                     i, vaddr, memsz, filesz,
-                     (phdr->p_flags & PF_R) ? "R" : "-",
-                     (phdr->p_flags & PF_W) ? "W" : "-",
-                     (phdr->p_flags & PF_X) ? "X" : "-");
-
         uint64_t vaddr_aligned = vaddr & ~0xFFF;
         uint64_t vaddr_offset = vaddr - vaddr_aligned;
         uint64_t total_size = vaddr_offset + memsz;
@@ -83,7 +74,7 @@ int elf_load(const void* elf_data, size_t size, uint64_t* out_entry) {
         for (uint64_t p = 0; p < pages_needed; p++) {
             void* phys_page = pfallocator_request_page();
             if (phys_page == NULL) {
-                printkf_error("elf_load: out of memory\n");
+                printkf_error("elf_load(): out of memory\n");
                 return -1;
             }
 
@@ -109,7 +100,6 @@ int elf_load(const void* elf_data, size_t size, uint64_t* out_entry) {
     }
 
     *out_entry = ehdr->e_entry;
-    printkf_ok("ELF loaded, entry point: 0x%llx\n", *out_entry);
 
     return 0;
 }

@@ -39,6 +39,7 @@ typedef struct task {
 void task_init();
 task_t* task_create(void (*entry_point)(), uint64_t stack_size);
 task_t* task_create_user(void (*entry_point)(), uint64_t stack_size);
+task_t* task_create_elf(const char* path, uint64_t stack_size);
 task_t* task_current();
 void task_switch(task_t* next);
 void task_yield();

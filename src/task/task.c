@@ -7,6 +7,8 @@
 #include "../usermode/usermode.h"
 #include "../arch/x86_64/gdt/gdt.h"
 #include "../std/string.h"
+#include "../fs/vfs/vfs.h"
+#include "../elf/elf.h"
 #include "scheduler.h"
 
 #include <stddef.h>
@@ -155,6 +157,40 @@ task_t* task_create_user(void (*entry_point)(), uint64_t stack_size) {
     return task;
 }
 
+task_t* task_create_elf(const char* path, uint64_t stack_size) {
+    int fd = vfs_open(path, O_RDONLY);
+    if (fd < 0) {
+        printkf_error("task_create_from_elf: failed to open '%s'\n", path);
+        return NULL;
+    }
+
+    int64_t size = vfs_seek(fd, 0, SEEK_END);
+    vfs_seek(fd, 0, SEEK_SET);
+
+    void* elf_data = malloc(size);
+    if (elf_data == NULL) {
+        vfs_close(fd);
+        printkf_error("task_create_from_elf(): out of memory\n");
+        return NULL;
+    }
+
+    vfs_read(fd, elf_data, size);
+    vfs_close(fd);
+
+    uint64_t entry = 0;
+    if (elf_load(elf_data, size, &entry) < 0) {
+        printkf_error("task_create_from_elf(): failed to load '%s'\n", path);
+        free(elf_data);
+        return NULL;
+    }
+    free(elf_data);
+
+
+    task_t* task = task_create_user((void(*)())entry, stack_size);
+
+    return task;
+}
+
 task_t* task_find_by_pid(uint32_t pid) {
     uint64_t flags = spin_lock(&task_lock);
     task_t* t = task_list;
@@ -172,13 +208,13 @@ task_t* task_find_by_pid(uint32_t pid) {
 task_t* task_fork() {
     task_t* parent = task_current();
     if (parent == NULL) {
-        printkf_error("fork: no current task\n");
+        printkf_error("fork(): no current task\n");
         return NULL;
     }
 
     task_t* child = (task_t*)malloc(sizeof(task_t));
     if (child == NULL) {
-        printkf_error("fork: failed to allocate child task\n");
+        printkf_error("fork(): failed to allocate child task\n");
         return NULL;
     }
 
@@ -218,8 +254,6 @@ task_t* task_fork() {
     spin_unlock(&task_lock, flags);
 
     scheduler_add_task(child);
-
-    printkf_info("fork: parent=%d, child=%d\n", parent->pid, child->pid);
 
     return child;
 }
@@ -313,9 +347,6 @@ void sleep_ms(uint64_t ms) {
     uint64_t now = timer_get_ticks();
     current_task->wake_tick = now + ticks_to_sleep;
     current_task->state = TASK_BLOCKED;
-
-    printkf("[T%d] sleep %llums, now=%llu, wake_at=%llu\n",
-            current_task->pid, ms, now, current_task->wake_tick);
 
     scheduler_schedule();
 }

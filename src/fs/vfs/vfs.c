@@ -10,7 +10,7 @@ static vfs_node_t* root_node = NULL;
 static file_descriptor_t fd_table[MAX_FDS];
 
 void vfs_init() {
-    printkf_info("Initializing VFS...");
+    printkf_info("Initializing VFS...\n");
     for(int i = 0; i < MAX_FDS; i++) {
         fd_table[i].in_use = false;
     }
@@ -23,7 +23,7 @@ void vfs_init() {
     root_node->type = VFS_DIRECTORY;
     root_node->parent = root_node;
 
-    printkf_ok("VFS Initialized");
+    printkf_ok("VFS Initialized\n");
 }
 
 vfs_node_t* vfs_root() {

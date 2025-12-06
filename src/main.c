@@ -22,7 +22,7 @@
 #include "drivers/timer/timer.h"
 #include "drivers/keyboard/keyboard.h"
 
-#include "programs/user_shell.h"
+#include "programs/shell_elf.h"
 #include "programs/hello_elf.h"
 
 #include "usermode/usermode.h"
@@ -30,6 +30,8 @@
 
 #include "fs/vfs/vfs.h"
 #include "fs/tmpfs/tmpfs.h"
+
+#include "elf/elf.h"
 
 extern uint8_t _kernel_start[];
 extern uint8_t _kernel_end[];
@@ -73,19 +75,20 @@ static void hcf() {
     }
 }
 
-void create_test_program() {
-    printkf_info("Creating /hello (%d bytes)\n", hello_elf_len);
-
-    int fd = vfs_open("/hello", O_CREAT | O_WRONLY | O_TRUNC);
+void create_program(const char* path, unsigned char elf[], unsigned int len) {
+    int fd = vfs_open(path, O_CREAT | O_WRONLY | O_TRUNC);
     if (fd < 0) {
-        printkf_error("Failed to create /hello\n");
+        printkf_error("Failed to create '%s'\n", path);
         return;
     }
 
-    vfs_write(fd, hello_elf, hello_elf_len);
+    vfs_write(fd, elf, len);
     vfs_close(fd);
+}
 
-    printkf_ok("Created /hello successfully\n");
+void setup_fs() {
+    vfs_mkdir("/system");
+    vfs_mkdir("/system/cmd");
 }
 
 void kmain() {
@@ -136,7 +139,10 @@ void kmain() {
     vfs_init();
     tmpfs_init();
 
-    create_test_program();
+    setup_fs();
+
+    create_program("/system/cmd/sh", shell, shell_len);
+    create_program("/hello", hello, hello_len);
 
     printkf_info("FREE RAM: %k%llu%k\n", 0xcccc66, pfallocator_get_free_ram(), 0xffffff);
     printkf_info("USED RAM: %k%llu%k\n", 0xcccc66, pfallocator_get_used_ram(), 0xffffff);
@@ -153,8 +159,14 @@ void kmain() {
 
     syscall_init();
 
-    task_t* shell = task_create_user(user_shell, 16384);
-    scheduler_add_task(shell);
+    printkf_info("Starting init shell...\n");
+    task_t* init = task_create_elf("/system/cmd/sh", 16384);
+    if (init == NULL) {
+        printkf_error("init(): failed to create init shell\n");
+        hcf();
+    }
+
+    scheduler_add_task(init);
     scheduler_enable();
 
     hcf();
