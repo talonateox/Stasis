@@ -159,7 +159,7 @@ void kmain() {
 
     syscall_init();
 
-    printkf_info("Starting init shell...\n");
+    printkf_info("Starting /system/cmd/sh\n");
     task_t* init = task_create_elf("/system/cmd/sh", 16384);
     if (init == NULL) {
         printkf_error("init(): failed to create init shell\n");
