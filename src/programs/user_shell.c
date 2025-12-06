@@ -8,7 +8,6 @@ static char input_buffer[INPUT_BUFFER_SIZE];
 static int input_index = 0;
 static char current_dir[256] = "/";
 
-
 static void build_path(char* result, const char* path) {
     if (path[0] == '/') {
         strcpy(result, path);
@@ -18,6 +17,40 @@ static void build_path(char* result, const char* path) {
             strcat(result, "/");
         }
         strcat(result, path);
+    }
+}
+
+static void cmd_exec(const char* args) {
+    if (args[0] == '\0') {
+        print("exec: missing program path\n");
+        return;
+    }
+
+    char path[256];
+    build_path(path, args);
+
+    int pid = fork();
+
+    if (pid == 0) {
+        exec(path);
+        print("exec: failed to execute '");
+        print(path);
+        print("'\n");
+        exit(1);
+    } else if (pid > 0) {
+        print("exec: started process ");
+        print_num(pid);
+        print("\n");
+
+        int status = waitpid(pid);
+
+        print("Process ");
+        print_num(pid);
+        print(" exited with code ");
+        print_num(status);
+        print("\n");
+    } else {
+        print("exec: fork failed\n");
     }
 }
 
@@ -198,6 +231,7 @@ static void cmd_help(void) {
     print("  pid           - show current process ID\n");
     print("  echo <text>   - echo text back\n");
     print("  exit          - exit shell\n");
+    print("  exec <prog>   - execute ELF binary (fork+exec)\n");
     print("  ls [path]     - list directory contents\n");
     print("  cd <path>     - change directory\n");
     print("  pwd           - print working directory\n");
@@ -242,6 +276,8 @@ static void process_command(void) {
     } else if (streq(cmd, "exit")) {
         print("o7\n");
         exit(0);
+    } else if (streq(cmd, "exec")) {
+        cmd_exec(args);
     } else if (streq(cmd, "ls")) {
         cmd_ls(args);
     } else if (streq(cmd, "cd")) {

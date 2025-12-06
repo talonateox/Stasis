@@ -23,6 +23,8 @@
 #include "drivers/keyboard/keyboard.h"
 
 #include "programs/user_shell.h"
+#include "programs/hello_elf.h"
+
 #include "usermode/usermode.h"
 #include "syscall/syscall.h"
 
@@ -69,6 +71,21 @@ static void hcf() {
     for(;;) {
         asm ("hlt");
     }
+}
+
+void create_test_program() {
+    printkf_info("Creating /hello (%d bytes)\n", hello_elf_len);
+
+    int fd = vfs_open("/hello", O_CREAT | O_WRONLY | O_TRUNC);
+    if (fd < 0) {
+        printkf_error("Failed to create /hello\n");
+        return;
+    }
+
+    vfs_write(fd, hello_elf, hello_elf_len);
+    vfs_close(fd);
+
+    printkf_ok("Created /hello successfully\n");
 }
 
 void kmain() {
@@ -118,6 +135,8 @@ void kmain() {
 
     vfs_init();
     tmpfs_init();
+
+    create_test_program();
 
     printkf_info("FREE RAM: %k%llu%k\n", 0xcccc66, pfallocator_get_free_ram(), 0xffffff);
     printkf_info("USED RAM: %k%llu%k\n", 0xcccc66, pfallocator_get_used_ram(), 0xffffff);

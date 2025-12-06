@@ -99,3 +99,7 @@ void page_direntry_set_address(page_direntry_t* entry, uint64_t address) {
 uint64_t page_direntry_get_address(page_direntry_t* entry) {
     return (entry->value & 0x000ffffffffff000) >> 12;
 }
+
+size_t page_get_offset() {
+    return _g_page_table_manager.offset;
+}

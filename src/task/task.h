@@ -22,6 +22,7 @@ typedef struct {
 
 typedef struct task {
     uint32_t pid;
+    uint32_t parent_pid;
     task_state_t state;
     cpu_state_t* context;
     void* stack;
@@ -32,6 +33,7 @@ typedef struct task {
     void* user_stack;
     uint64_t user_stack_size;
     uint8_t is_user;
+    int exit_code;
 } task_t;
 
 void task_init();
@@ -44,3 +46,7 @@ void task_block();
 void task_unblock(task_t* task);
 void sleep_ms(uint64_t ms);
 void task_exit();
+
+task_t* task_fork();
+int task_waitpid(uint32_t pid);
+task_t* task_find_by_pid(uint32_t pid);

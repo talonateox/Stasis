@@ -6,6 +6,8 @@
 #include "../drivers/timer/timer.h"
 #include "../usermode/usermode.h"
 #include "../arch/x86_64/gdt/gdt.h"
+#include "../std/string.h"
+#include "scheduler.h"
 
 #include <stddef.h>
 
@@ -72,21 +74,20 @@ task_t* task_create(void (*entry_point)(), uint64_t stack_size) {
 
     task->stack_size = stack_size;
     task->pid = next_pid++;
+    task->parent_pid = 0;
     task->state = TASK_READY;
     task->entry_point = entry_point;
     task->wake_tick = 0;
     task->user_stack = NULL;
     task->user_stack_size = 0;
     task->is_user = 0;
+    task->exit_code = 0;
 
     uint64_t stack_top = (uint64_t)task->stack + stack_size;
-
     stack_top &= ~0xFULL;
-
     uint64_t* sp = (uint64_t*)stack_top;
 
     *--sp = (uint64_t)task_entry_wrapper;
-
     *--sp = 0;
     *--sp = 0;
     *--sp = 0;
@@ -127,18 +128,18 @@ task_t* task_create_user(void (*entry_point)(), uint64_t stack_size) {
     task->user_stack_size = stack_size;
 
     task->pid = next_pid++;
+    task->parent_pid = 0;
     task->state = TASK_READY;
     task->entry_point = entry_point;
     task->wake_tick = 0;
     task->is_user = 1;
+    task->exit_code = 0;
 
     uint64_t kstack_top = (uint64_t)task->stack + task->stack_size;
     kstack_top &= ~0xFULL;
-
     uint64_t* sp = (uint64_t*)kstack_top;
 
     *--sp = (uint64_t)user_task_entry_wrapper;
-
     *--sp = 0;
     *--sp = 0;
     *--sp = 0;
@@ -152,6 +153,95 @@ task_t* task_create_user(void (*entry_point)(), uint64_t stack_size) {
     task_list = task;
 
     return task;
+}
+
+task_t* task_find_by_pid(uint32_t pid) {
+    uint64_t flags = spin_lock(&task_lock);
+    task_t* t = task_list;
+    while (t != NULL) {
+        if (t->pid == pid) {
+            spin_unlock(&task_lock, flags);
+            return t;
+        }
+        t = t->next;
+    }
+    spin_unlock(&task_lock, flags);
+    return NULL;
+}
+
+task_t* task_fork() {
+    task_t* parent = task_current();
+    if (parent == NULL) {
+        printkf_error("fork: no current task\n");
+        return NULL;
+    }
+
+    task_t* child = (task_t*)malloc(sizeof(task_t));
+    if (child == NULL) {
+        printkf_error("fork: failed to allocate child task\n");
+        return NULL;
+    }
+
+    child->stack = malloc(parent->stack_size);
+    if (child->stack == NULL) {
+        free(child);
+        return NULL;
+    }
+    child->stack_size = parent->stack_size;
+    memcpy(child->stack, parent->stack, parent->stack_size);
+
+    child->user_stack = malloc(parent->user_stack_size);
+    if (child->user_stack == NULL) {
+        free(child->stack);
+        free(child);
+        return NULL;
+    }
+    child->user_stack_size = parent->user_stack_size;
+    memcpy(child->user_stack, parent->user_stack, parent->user_stack_size);
+
+    child->pid = next_pid++;
+    child->parent_pid = parent->pid;
+    child->state = TASK_READY;
+    child->entry_point = parent->entry_point;
+    child->wake_tick = 0;
+    child->is_user = parent->is_user;
+    child->exit_code = 0;
+
+    uint64_t context_offset = (uint64_t)parent->context - (uint64_t)parent->stack;
+    child->context = (cpu_state_t*)((uint64_t)child->stack + context_offset);
+
+    child->context->rax = 0;
+
+    uint64_t flags = spin_lock(&task_lock);
+    child->next = task_list;
+    task_list = child;
+    spin_unlock(&task_lock, flags);
+
+    scheduler_add_task(child);
+
+    printkf_info("fork: parent=%d, child=%d\n", parent->pid, child->pid);
+
+    return child;
+}
+
+int task_waitpid(uint32_t pid) {
+    task_t* child = task_find_by_pid(pid);
+    if (child == NULL) {
+        return -1;
+    }
+
+    task_t* parent = task_current();
+    if (child->parent_pid != parent->pid) {
+        return -1;
+    }
+
+    while (child->state != TASK_TERMINATED) {
+        task_yield();
+    }
+
+    int exit_code = child->exit_code;
+
+    return exit_code;
 }
 
 task_t* task_current() {

@@ -8,6 +8,9 @@
 #define SYS_YIELD   3
 #define SYS_SLEEP   4
 #define SYS_GETPID  5
+#define SYS_EXEC    6
+#define SYS_FORK    7
+#define SYS_WAITPID 8
 
 #define SYS_OPEN        10
 #define SYS_CLOSE       11

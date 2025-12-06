@@ -4,6 +4,9 @@
 #include "../io/terminal.h"
 #include "../drivers/keyboard/keyboard.h"
 #include "../fs/vfs/vfs.h"
+#include "../elf/elf.h"
+#include "../mem/alloc/heap.h"
+#include "../usermode/usermode.h"
 
 #define MSR_EFER   0xC0000080
 #define MSR_STAR   0xC0000081
@@ -44,6 +47,64 @@ void syscall_init() {
     printkf_ok("Syscalls enabled\n");
 }
 
+static int sys_exec(const char* path) {
+    int fd = vfs_open(path, O_RDONLY);
+    if (fd < 0) {
+        printkf_error("exec: failed to open '%s'\n", path);
+        return -1;
+    }
+
+    int64_t size = vfs_seek(fd, 0, SEEK_END);
+    if (size <= 0) {
+        vfs_close(fd);
+        printkf_error("exec: failed to get size of '%s'\n", path);
+        return -1;
+    }
+    vfs_seek(fd, 0, SEEK_SET);
+
+    void* elf_data = malloc(size);
+    if (elf_data == NULL) {
+        vfs_close(fd);
+        printkf_error("exec: out of memory\n");
+        return -1;
+    }
+
+    int64_t bytes_read = vfs_read(fd, elf_data, size);
+    vfs_close(fd);
+
+    if (bytes_read != size) {
+        free(elf_data);
+        printkf_error("exec: failed to read '%s'\n", path);
+        return -1;
+    }
+
+    uint64_t entry_point = 0;
+    if (elf_load(elf_data, size, &entry_point) < 0) {
+        free(elf_data);
+        printkf_error("exec: failed to load '%s'\n", path);
+        return -1;
+    }
+
+    free(elf_data);
+
+    task_t* current = task_current();
+    if (current == NULL) {
+        printkf_error("exec: no current task\n");
+        return -1;
+    }
+
+    current->entry_point = (void(*)())entry_point;
+
+    uint64_t user_rsp = (uint64_t)current->user_stack + current->user_stack_size;
+    user_rsp &= ~0xFULL;
+
+    printkf_ok("exec: jumping to 0x%llx with stack 0x%llx\n", entry_point, user_rsp);
+
+    jump_to_usermode(entry_point, user_rsp);
+
+    return 0;
+}
+
 uint64_t syscall_handler(uint64_t syscall, uint64_t arg1, uint64_t arg2, uint64_t arg3) {
     switch(syscall) {
         case SYS_EXIT: {
@@ -62,6 +123,18 @@ uint64_t syscall_handler(uint64_t syscall, uint64_t arg1, uint64_t arg2, uint64_
             task_t* current = task_current();
             return current ? current->pid : 0;
         }
+        case SYS_EXEC: {
+            const char* path = (const char*)arg1;
+            return sys_exec(path);
+        }
+        case SYS_FORK: {
+            task_t* child = task_fork();
+            return child ? child->pid : -1;
+        }
+        case SYS_WAITPID: {
+            uint32_t pid = (uint32_t)arg1;
+            return task_waitpid(pid);
+        }
         case SYS_WRITE: {
             int fd = (int)arg1;
             const char* buf = (const char*)arg2;
@@ -76,7 +149,6 @@ uint64_t syscall_handler(uint64_t syscall, uint64_t arg1, uint64_t arg2, uint64_
 
             return vfs_write(fd, buf, size);
         }
-
         case SYS_READ: {
             int fd = (int)arg1;
             char* buf = (char*)arg2;

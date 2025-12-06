@@ -66,6 +66,18 @@ static inline uint64_t getpid() {
     return syscall0(SYS_GETPID);
 }
 
+static inline int exec(const char* path) {
+    return syscall1(SYS_EXEC, (uint64_t)path);
+}
+
+static inline int fork() {
+    return (int)syscall0(SYS_FORK);
+}
+
+static inline int waitpid(int pid) {
+    return (int)syscall1(SYS_WAITPID, pid);
+}
+
 static inline int64_t write(int fd, const void* buf, size_t len) {
     return syscall3(SYS_WRITE, fd, (uint64_t)buf, len);
 }
