@@ -3,6 +3,7 @@
 #include "../task/task.h"
 #include "../io/terminal.h"
 #include "../drivers/keyboard/keyboard.h"
+#include "../fs/vfs/vfs.h"
 
 #define MSR_EFER   0xC0000080
 #define MSR_STAR   0xC0000081
@@ -49,23 +50,6 @@ uint64_t syscall_handler(uint64_t syscall, uint64_t arg1, uint64_t arg2, uint64_
             task_exit();
             return 0;
         }
-        case SYS_WRITE: {
-            for(uint64_t i = 0; i < arg3; i++) {
-                char c = ((char*)arg2)[i];
-                putkc(c);
-            }
-            return arg3;
-        }
-        case SYS_READ: {
-            char* buf = (char*)arg2;
-            uint64_t i = 0;
-            while(i < arg3) {
-                char c = keyboard_getchar();
-                buf[i++] = c;
-                if(c == '\n') break;
-            }
-            return i;
-        }
         case SYS_YIELD: {
             task_yield();
             return 0;
@@ -77,6 +61,67 @@ uint64_t syscall_handler(uint64_t syscall, uint64_t arg1, uint64_t arg2, uint64_
         case SYS_GETPID: {
             task_t* current = task_current();
             return current ? current->pid : 0;
+        }
+        case SYS_WRITE: {
+            int fd = (int)arg1;
+            const char* buf = (const char*)arg2;
+            size_t size = (size_t)arg3;
+
+            if (fd == 1 || fd == 2) {
+                for (size_t i = 0; i < size; i++) {
+                    putkc(buf[i]);
+                }
+                return size;
+            }
+
+            return vfs_write(fd, buf, size);
+        }
+
+        case SYS_READ: {
+            int fd = (int)arg1;
+            char* buf = (char*)arg2;
+            size_t size = (size_t)arg3;
+
+            if (fd == 0) {
+                size_t i = 0;
+                while (i < size) {
+                    char c = keyboard_getchar();
+                    buf[i++] = c;
+                    if (c == '\n') break;
+                }
+                return i;
+            }
+
+            return vfs_read(fd, buf, size);
+        }
+        case SYS_OPEN: {
+            const char* path = (const char*)arg1;
+            int flags = (int)arg2;
+            return vfs_open(path, flags);
+        }
+        case SYS_CLOSE: {
+            int fd = (int)arg1;
+            return vfs_close(fd);
+        }
+        case SYS_SEEK: {
+            int fd = (int)arg1;
+            int64_t offset = (int64_t)arg2;
+            int whence = (int)arg3;
+            return vfs_seek(fd, offset, whence);
+        }
+        case SYS_MKDIR: {
+            const char* path = (const char*)arg1;
+            return vfs_mkdir(path);
+        }
+        case SYS_READDIR: {
+            int fd = (int)arg1;
+            char* name = (char*)arg2;
+            size_t size = (size_t)arg3;
+            return vfs_readdir(fd, name, size);
+        }
+        case SYS_UNLINK: {
+            const char* path = (const char*)arg1;
+            return vfs_unlink(path);
         }
         default: {
             printkf_error("syscall_handler(): unknown syscall: %llu\n", syscall);

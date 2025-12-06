@@ -13,6 +13,8 @@ static int scheduler_enabled = 0;
 
 static spinlock_t scheduler_lock = {0};
 
+extern volatile int in_syscall;
+
 void scheduler_init() {
     ready_queue_head = NULL;
     ready_queue_tail = NULL;
@@ -161,7 +163,6 @@ restart: ;
     }
 }
 
-
 void scheduler_enable() {
     scheduler_enabled = 1;
     printkf_ok("Scheduler enabled\n");
@@ -183,6 +184,8 @@ void scheduler_tick() {
     uint64_t flags = spin_lock(&scheduler_lock);
     wake_sleeping_tasks();
     spin_unlock(&scheduler_lock, flags);
+
+    if (in_syscall) return;
 
     scheduler_schedule();
 }

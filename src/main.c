@@ -24,9 +24,10 @@
 
 #include "programs/user_shell.h"
 #include "usermode/usermode.h"
-
 #include "syscall/syscall.h"
-#include "usermode/usermode.h"
+
+#include "fs/vfs/vfs.h"
+#include "fs/tmpfs/tmpfs.h"
 
 extern uint8_t _kernel_start[];
 extern uint8_t _kernel_end[];
@@ -114,6 +115,9 @@ void kmain() {
     sti();
 
     heap_init((void*)0x0000100000000000, 0x10, offset);
+
+    // vfs_init();
+    // tmpfs_init();
 
     printkf_info("FREE RAM: %k%llu%k\n", 0xcccc66, pfallocator_get_free_ram(), 0xffffff);
     printkf_info("USED RAM: %k%llu%k\n", 0xcccc66, pfallocator_get_used_ram(), 0xffffff);

@@ -1,4 +1,3 @@
-
 section .text
 global task_switch_impl
 

@@ -50,3 +50,29 @@ int memcmp(const void *s1, const void *s2, size_t n) {
 
     return 0;
 }
+
+int strcmp(const char *s1, const char *s2) {
+    const unsigned char *p1 = (const unsigned char *)s1;
+    const unsigned char *p2 = (const unsigned char *)s2;
+
+    while (*p1 != '\0' && *p1 == *p2) {
+        p1++;
+        p2++;
+    }
+
+    return (int)*p1 - (int)*p2;
+}
+
+void strcpy(char *s1, const char *s2) {
+    char *temp = s1;
+    while((*s1++ = *s2++) != '\0');
+}
+
+size_t strlen(const char *str) {
+    size_t length = 0;
+    while (*str != '\0') {
+        length++;
+        str++;
+    }
+    return length;
+}

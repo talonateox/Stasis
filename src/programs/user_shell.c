@@ -23,25 +23,6 @@ static int starts_with(const char* str, const char* prefix) {
     return 1;
 }
 
-static void print_num(uint64_t n) {
-    char buf[20];
-    int i = 0;
-
-    if(n == 0) {
-        print("0");
-        return;
-    }
-
-    while(n > 0) {
-        buf[i++] = '0' + (n % 10);
-        n /= 10;
-    }
-
-    while(i > 0) {
-        write(1, &buf[--i], 1);
-    }
-}
-
 static void process_command() {
     if(input_index > 0 && input_buffer[input_index-1] == '\n') {
         input_buffer[input_index-1] = '\0';

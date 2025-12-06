@@ -159,7 +159,6 @@ task_t* task_current() {
 }
 
 void task_switch(task_t* next) {
-        // printkf("[DEBUG] task_switch to %p (PID %d)\n", next, next ? next->pid : -1);
     if(next == NULL || next == current_task) {
         return;
     }
