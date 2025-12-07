@@ -1,6 +1,7 @@
 #include "paging.h"
 
 #include "page_table_manager.h"
+#include "page_map_indexer.h"
 #include "../memmap.h"
 #include "../alloc/page_frame_alloc.h"
 #include "../../limine.h"
@@ -79,6 +80,11 @@ void page_map_memory(void* virt, void* phys) {
     page_table_map(&_g_page_table_manager,  virt, phys);
 }
 
+void page_map_memory_to(page_table_t* pml4, void* virt, void* phys) {
+    page_table_manager_t temp = {pml4, _g_page_table_manager.offset};
+    page_table_map(&temp, virt, phys);
+}
+
 void page_direntry_set_flag(page_direntry_t* entry, page_direntry_flag_t flag, bool enabled) {
     uint64_t bit = (uint64_t)1 << flag;
     entry->value &= ~bit;
@@ -102,4 +108,78 @@ uint64_t page_direntry_get_address(page_direntry_t* entry) {
 
 size_t page_get_offset() {
     return _g_page_table_manager.offset;
+}
+
+page_table_t* page_table_clone_for_user() {
+    page_table_t* new_pml4 = (page_table_t*)pfallocator_request_page();
+    if (new_pml4 == NULL) return NULL;
+
+    memset(new_pml4, 0, 0x1000);
+
+    page_table_t* current_pml4 = _g_page_table_manager.pml4;
+
+    for (int i = 256; i < 512; i++) {
+        new_pml4->entries[i] = current_pml4->entries[i];
+    }
+
+    for (int i = 0; i < 256; i++) {
+        if (!page_direntry_get_flag(&current_pml4->entries[i], PAGE_PRESENT)) {
+            continue;
+        }
+        new_pml4->entries[i] = current_pml4->entries[i];
+    }
+
+    return new_pml4;
+}
+
+page_table_t* page_table_create_user() {
+    page_table_t* new_pml4 = (page_table_t*)pfallocator_request_page();
+    if (new_pml4 == NULL) return NULL;
+
+    memset(new_pml4, 0, 0x1000);
+
+    page_table_t* kernel_pml4 = _g_page_table_manager.pml4;
+
+    for (int i = 256; i < 512; i++) {
+        new_pml4->entries[i] = kernel_pml4->entries[i];
+    }
+
+    return new_pml4;
+}
+
+page_table_t* page_get_pml4() {
+    return _g_page_table_manager.pml4;
+}
+
+void* page_table_get_physical(void* virt) {
+    return page_table_get_physical_from(_g_page_table_manager.pml4, virt);
+}
+
+void* page_table_get_physical_from(page_table_t* pml4, void* virt) {
+    page_map_indexer_t indexer = page_map_indexer_new((uint64_t)virt);
+    uint64_t offset = _g_page_table_manager.offset;
+
+    page_direntry_t pde = pml4->entries[indexer.pdp];
+    if (!page_direntry_get_flag(&pde, PAGE_PRESENT)) return NULL;
+
+    uint64_t pdp_phys = page_direntry_get_address(&pde) << 12;
+    page_table_t* pdp = (page_table_t*)(pdp_phys + offset);
+
+    pde = pdp->entries[indexer.pd];
+    if (!page_direntry_get_flag(&pde, PAGE_PRESENT)) return NULL;
+
+    uint64_t pd_phys = page_direntry_get_address(&pde) << 12;
+    page_table_t* pd = (page_table_t*)(pd_phys + offset);
+
+    pde = pd->entries[indexer.pt];
+    if (!page_direntry_get_flag(&pde, PAGE_PRESENT)) return NULL;
+
+    uint64_t pt_phys = page_direntry_get_address(&pde) << 12;
+    page_table_t* pt = (page_table_t*)(pt_phys + offset);
+
+    pde = pt->entries[indexer.p];
+    if (!page_direntry_get_flag(&pde, PAGE_PRESENT)) return NULL;
+
+    uint64_t page_phys = page_direntry_get_address(&pde) << 12;
+    return (void*)page_phys;
 }

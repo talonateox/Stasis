@@ -71,4 +71,4 @@ int64_t vfs_tell(int fd);
 int vfs_mkdir(const char* path);
 int vfs_readdir(int fd, char* name, size_t name_size);
 
-vfs_node_t* vfs_root(void);
+vfs_node_t* vfs_root();

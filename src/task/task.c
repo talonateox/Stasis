@@ -129,6 +129,15 @@ task_t* task_create_user(void (*entry_point)(), uint64_t stack_size) {
     }
     task->user_stack_size = stack_size;
 
+    task->page_table = page_table_create_user();
+    if(task->page_table == NULL) {
+        printkf_error("task_create_user(): failed to create page table\n");
+        free(task->user_stack);
+        free(task->stack);
+        free(task);
+        return NULL;
+    }
+
     task->pid = next_pid++;
     task->parent_pid = 0;
     task->state = TASK_READY;
@@ -177,16 +186,21 @@ task_t* task_create_elf(const char* path, uint64_t stack_size) {
     vfs_read(fd, elf_data, size);
     vfs_close(fd);
 
+    task_t* task = task_create_user(NULL, stack_size);
+    if (task == NULL) {
+        free(elf_data);
+        return NULL;
+    }
+
     uint64_t entry = 0;
-    if (elf_load(elf_data, size, &entry) < 0) {
+    if (elf_load(elf_data, size, &entry, task->page_table) < 0) {
         printkf_error("task_create_from_elf(): failed to load '%s'\n", path);
         free(elf_data);
         return NULL;
     }
     free(elf_data);
 
-
-    task_t* task = task_create_user((void(*)())entry, stack_size);
+    task->entry_point = (void(*)())entry;
 
     return task;
 }
@@ -235,6 +249,15 @@ task_t* task_fork() {
     child->user_stack_size = parent->user_stack_size;
     memcpy(child->user_stack, parent->user_stack, parent->user_stack_size);
 
+    child->page_table = page_table_clone_for_user();
+    if (child->page_table == NULL) {
+        printkf_error("fork(): failed to clone page table\n");
+        free(child->user_stack);
+        free(child->stack);
+        free(child);
+        return NULL;
+    }
+
     child->pid = next_pid++;
     child->parent_pid = parent->pid;
     child->state = TASK_READY;
@@ -243,16 +266,30 @@ task_t* task_fork() {
     child->is_user = parent->is_user;
     child->exit_code = 0;
 
-    uint64_t context_offset = (uint64_t)parent->context - (uint64_t)parent->stack;
-    child->context = (cpu_state_t*)((uint64_t)child->stack + context_offset);
+    extern void fork_child_return();
 
-    child->context->rax = 0;
+    extern uint64_t saved_syscall_rsp;
+
+    uint64_t syscall_offset = saved_syscall_rsp - (uint64_t)parent->stack;
+
+    uint64_t child_syscall_rsp = (uint64_t)child->stack + syscall_offset;
+
+    uint64_t* child_sp = (uint64_t*)(child_syscall_rsp - 7 * sizeof(uint64_t));
+
+    child_sp[0] = 0;
+    child_sp[1] = 0;
+    child_sp[2] = 0;
+    child_sp[3] = 0;
+    child_sp[4] = 0;
+    child_sp[5] = 0;
+    child_sp[6] = (uint64_t)fork_child_return;
+
+    child->context = (cpu_state_t*)child_sp;
 
     uint64_t flags = spin_lock(&task_lock);
     child->next = task_list;
     task_list = child;
     spin_unlock(&task_lock, flags);
-
     scheduler_add_task(child);
 
     return child;
@@ -295,6 +332,11 @@ void task_switch(task_t* next) {
 
     next->state = TASK_RUNNING;
     current_task = next;
+
+    uint64_t hhdm_offset = page_get_offset();
+    uint64_t new_cr3_phys = (uint64_t)next->page_table - hhdm_offset;
+
+    asm volatile("mov %0, %%cr3" : : "r"(new_cr3_phys) : "memory");
 
     uint64_t kernel_stack_top = (uint64_t)next->stack + next->stack_size;
     tss_set_kernel_stack(kernel_stack_top);
@@ -352,11 +394,23 @@ void sleep_ms(uint64_t ms) {
 }
 
 void task_exit() {
-    if(current_task != NULL) {
-        current_task->state = TASK_TERMINATED;
+    task_t* current = task_current();
+    printkf_info("task_exit(): PID=%d exiting\n", current ? current->pid : 0);
+
+    if(current != NULL) {
+        current->state = TASK_TERMINATED;
+        printkf_info("task_exit(): marked PID=%d as TERMINATED\n", current->pid);
     }
+
+    printkf_info("task_exit(): calling scheduler_schedule()\n");
+
+    cli();
+
     scheduler_schedule();
+
+    printkf_error("task_exit(): SHOULD NEVER REACH HERE! Looping forever...\n");
+
     while(1) {
-        asm volatile("hlt");
+        asm volatile("cli; hlt");
     }
 }

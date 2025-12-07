@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stddef.h>
 
+
 typedef enum {
     PAGE_PRESENT = 0,
     PAGE_READ_WRITE = 1,
@@ -32,6 +33,12 @@ void page_direntry_set_address(page_direntry_t* entry, uint64_t address);
 uint64_t page_direntry_get_address(page_direntry_t* entry);
 
 void page_table_init(uint64_t offset, uint64_t kernel_start, uint64_t kernel_end);
+page_table_t* page_table_create_user();
+page_table_t* page_table_clone_for_user();
+
 void page_map_memory(void* virt, void* phys);
+void page_map_memory_to(page_table_t* pml4, void* virt, void* phys);
 
 size_t page_get_offset();
+page_table_t* page_get_pml4();
+void* page_table_get_physical_from(page_table_t* pml4, void* virt);

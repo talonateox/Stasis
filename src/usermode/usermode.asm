@@ -1,14 +1,14 @@
 section .text
 global jump_to_usermode
 jump_to_usermode:
-    mov rax, rdi
-    mov rcx, rsi
+    mov rcx, rdi
+    mov r11, rsi
 
-    push 0x1B
-    push rcx
+    push 0x1b
+    push r11
     push 0x202
     push 0x23
-    push rax
+    push rcx
 
     xor rax, rax
     xor rbx, rbx

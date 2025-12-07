@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include "../mem/paging/paging.h"
 
 typedef enum {
     TASK_READY,
@@ -26,6 +27,7 @@ typedef struct task {
     task_state_t state;
     cpu_state_t* context;
     void* stack;
+    page_table_t* page_table;
     uint64_t stack_size;
     void (*entry_point)();
     struct task* next;

@@ -3,6 +3,7 @@
 #include "../io/terminal.h"
 #include "../std/string.h"
 #include "../mem/paging/paging.h"
+#include "../mem/paging/page_table_manager.h"
 #include "../mem/alloc/page_frame_alloc.h"
 
 bool elf_validate(const void* data) {
@@ -48,7 +49,7 @@ elf64_phdr_t* elf_get_program_header(const void* data, int index) {
     return (elf64_phdr_t*)((uint8_t*)data + offset);
 }
 
-int elf_load(const void* elf_data, size_t size, uint64_t* out_entry) {
+int elf_load(const void* elf_data, size_t size, uint64_t* out_entry, page_table_t* page_table) {
     if (!elf_validate(elf_data)) {
         printkf_error("elf_load(): invalid ELF file\n");
         return -1;
@@ -82,20 +83,61 @@ int elf_load(const void* elf_data, size_t size, uint64_t* out_entry) {
             void* phys_addr = (void*)((uint64_t)phys_page - hhdm_offset);
 
             void* virt_addr = (void*)(vaddr_aligned + p * 0x1000);
-            page_map_memory(virt_addr, phys_addr);
+            page_map_memory_to(page_table, virt_addr, phys_addr);
 
             memset(phys_page, 0, 0x1000);
         }
 
         if (filesz > 0) {
             const uint8_t* src = (const uint8_t*)elf_data + offset;
-            uint8_t* dst = (uint8_t*)vaddr;
-            memcpy(dst, src, filesz);
+            size_t bytes_remaining = filesz;
+            uint64_t current_vaddr = vaddr;
+            uint64_t hhdm_offset = page_get_offset();
+
+            while (bytes_remaining > 0) {
+                uint64_t page_offset = current_vaddr & 0xFFF;
+
+                size_t bytes_in_page = 0x1000 - page_offset;
+                size_t to_copy = (bytes_remaining < bytes_in_page) ? bytes_remaining : bytes_in_page;
+
+                void* phys_page = page_table_get_physical_from(page_table, (void*)(current_vaddr & ~0xFFF));
+                if (phys_page == NULL) {
+                    printkf_error("elf_load(): page not mapped at 0x%llx\n", current_vaddr);
+                    return -1;
+                }
+
+                uint8_t* dst = (uint8_t*)((uint64_t)phys_page + hhdm_offset + page_offset);
+
+                memcpy(dst, src, to_copy);
+
+                src += to_copy;
+                current_vaddr += to_copy;
+                bytes_remaining -= to_copy;
+            }
         }
 
         if (memsz > filesz) {
-            uint8_t* bss_start = (uint8_t*)(vaddr + filesz);
-            memset(bss_start, 0, memsz - filesz);
+            size_t bytes_remaining = memsz - filesz;
+            uint64_t current_vaddr = vaddr + filesz;
+            uint64_t hhdm_offset = page_get_offset();
+
+            while (bytes_remaining > 0) {
+                uint64_t page_offset = current_vaddr & 0xFFF;
+                size_t bytes_in_page = 0x1000 - page_offset;
+                size_t to_zero = (bytes_remaining < bytes_in_page) ? bytes_remaining : bytes_in_page;
+
+                void* phys_page = page_table_get_physical_from(page_table, (void*)(current_vaddr & ~0xFFF));
+                if (phys_page == NULL) {
+                    printkf_error("elf_load(): page not mapped at 0x%llx\n", current_vaddr);
+                    return -1;
+                }
+
+                uint8_t* dst = (uint8_t*)((uint64_t)phys_page + hhdm_offset + page_offset);
+                memset(dst, 0, to_zero);
+
+                current_vaddr += to_zero;
+                bytes_remaining -= to_zero;
+            }
         }
     }
 

@@ -6,6 +6,8 @@
 #include "../fs/vfs/vfs.h"
 #include "../elf/elf.h"
 #include "../mem/alloc/heap.h"
+#include "../mem/paging/paging.h"
+#include "../mem/paging/page_table_manager.h"
 #include "../usermode/usermode.h"
 
 #define MSR_EFER   0xC0000080
@@ -78,8 +80,22 @@ static int sys_exec(const char* path) {
         return -1;
     }
 
+    task_t* current = task_current();
+    if (current == NULL) {
+        free(elf_data);
+        printkf_error("exec: no current task\n");
+        return -1;
+    }
+
+    page_table_t* new_page_table = page_table_create_user();
+    if (new_page_table == NULL) {
+        free(elf_data);
+        printkf_error("exec: failed to create page table\n");
+        return -1;
+    }
+
     uint64_t entry_point = 0;
-    if (elf_load(elf_data, size, &entry_point) < 0) {
+    if (elf_load(elf_data, size, &entry_point, new_page_table) < 0) {
         free(elf_data);
         printkf_error("exec: failed to load '%s'\n", path);
         return -1;
@@ -87,13 +103,12 @@ static int sys_exec(const char* path) {
 
     free(elf_data);
 
-    task_t* current = task_current();
-    if (current == NULL) {
-        printkf_error("exec: no current task\n");
-        return -1;
-    }
-
+    current->page_table = new_page_table;
     current->entry_point = (void(*)())entry_point;
+
+    uint64_t hhdm_offset = page_get_offset();
+    uint64_t new_cr3_phys = (uint64_t)new_page_table - hhdm_offset;
+    asm volatile("mov %0, %%cr3" : : "r"(new_cr3_phys) : "memory");
 
     uint64_t user_rsp = (uint64_t)current->user_stack + current->user_stack_size;
     user_rsp &= ~0xFULL;

@@ -23,7 +23,7 @@ static vfs_ops_t tmpfs_ops = {
     .truncate = tmpfs_truncate,
 };
 
-void tmpfs_init(void) {
+void tmpfs_init() {
     vfs_node_t* root = vfs_root();
     root->ops = &tmpfs_ops;
     printkf_ok("tmpfs mounted at /\n");
