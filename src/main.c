@@ -134,7 +134,7 @@ void kmain() {
     pic_remap();
     sti();
 
-    heap_init((void*)0x0000100000000000, 0x10, offset);
+    heap_init((void*)0xFFFF900000000000, 0x10, offset);
 
     vfs_init();
     tmpfs_init();

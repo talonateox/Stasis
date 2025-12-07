@@ -270,9 +270,8 @@ task_t* task_fork() {
 
     extern uint64_t saved_syscall_rsp;
 
-    uint64_t syscall_offset = saved_syscall_rsp - (uint64_t)parent->stack;
-
-    uint64_t child_syscall_rsp = (uint64_t)child->stack + syscall_offset;
+    uint64_t syscall_offset = saved_syscall_rsp - (uint64_t)parent->user_stack;
+    uint64_t child_syscall_rsp = (uint64_t)child->user_stack + syscall_offset;
 
     uint64_t* child_sp = (uint64_t*)(child_syscall_rsp - 7 * sizeof(uint64_t));
 
@@ -341,8 +340,17 @@ void task_switch(task_t* next) {
     uint64_t kernel_stack_top = (uint64_t)next->stack + next->stack_size;
     tss_set_kernel_stack(kernel_stack_top);
 
+    printkf_info("switch: %d->%d ctx=%llx pt=%llx\n",
+                 old_task ? old_task->pid : 0, next->pid,
+                 (uint64_t)next->context, (uint64_t)next->page_table);
+
     if(old_task != NULL) {
         task_switch_impl(&old_task->context, next->context);
+        uint64_t actual_cr3;
+        asm volatile("mov %%cr3, %0" : "=r"(actual_cr3));
+        printkf_info("returned to PID=%d, cr3=%llx, expected pt=%llx\n",
+                     current_task->pid, actual_cr3,
+                     (uint64_t)current_task->page_table - hhdm_offset);
     } else {
         task_switch_impl(NULL, next->context);
     }

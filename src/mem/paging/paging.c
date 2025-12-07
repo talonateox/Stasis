@@ -110,23 +110,73 @@ size_t page_get_offset() {
     return _g_page_table_manager.offset;
 }
 
+static page_table_t* deep_copy_page_table(page_table_t* src, int level) {
+    uint64_t offset = _g_page_table_manager.offset;
+
+    page_table_t* dst = (page_table_t*)pfallocator_request_page();
+    if (dst == NULL) return NULL;
+    memset(dst, 0, 0x1000);
+
+    for (int i = 0; i < 512; i++) {
+        if (!page_direntry_get_flag(&src->entries[i], PAGE_PRESENT)) {
+            continue;
+        }
+
+        if (level == 1) {
+            dst->entries[i] = src->entries[i];
+        } else {
+            uint64_t child_phys = page_direntry_get_address(&src->entries[i]) << 12;
+            page_table_t* child_src = (page_table_t*)(child_phys + offset);
+
+            page_table_t* child_dst = deep_copy_page_table(child_src, level - 1);
+            if (child_dst == NULL) {
+                return NULL;
+            }
+
+            uint64_t child_dst_phys = (uint64_t)child_dst - offset;
+            dst->entries[i].value = src->entries[i].value;
+            page_direntry_set_address(&dst->entries[i], child_dst_phys >> 12);
+        }
+    }
+
+    return dst;
+}
+
 page_table_t* page_table_clone_for_user() {
     page_table_t* new_pml4 = (page_table_t*)pfallocator_request_page();
     if (new_pml4 == NULL) return NULL;
 
     memset(new_pml4, 0, 0x1000);
 
-    page_table_t* current_pml4 = _g_page_table_manager.pml4;
+    // Get current CR3 (the running task's page table)
+    uint64_t cr3;
+    asm volatile("mov %%cr3, %0" : "=r"(cr3));
+    page_table_t* current_pml4 = (page_table_t*)(cr3 + _g_page_table_manager.offset);
+    uint64_t offset = _g_page_table_manager.offset;
 
+    // Share kernel space (upper half) - these are the same for all processes
     for (int i = 256; i < 512; i++) {
         new_pml4->entries[i] = current_pml4->entries[i];
     }
 
+    // Deep copy user space (lower half) so parent and child have independent mappings
     for (int i = 0; i < 256; i++) {
         if (!page_direntry_get_flag(&current_pml4->entries[i], PAGE_PRESENT)) {
             continue;
         }
-        new_pml4->entries[i] = current_pml4->entries[i];
+
+        uint64_t pdpt_phys = page_direntry_get_address(&current_pml4->entries[i]) << 12;
+        page_table_t* pdpt_src = (page_table_t*)(pdpt_phys + offset);
+
+        page_table_t* pdpt_dst = deep_copy_page_table(pdpt_src, 3);
+        if (pdpt_dst == NULL) {
+            // TODO: cleanup
+            return NULL;
+        }
+
+        uint64_t pdpt_dst_phys = (uint64_t)pdpt_dst - offset;
+        new_pml4->entries[i].value = current_pml4->entries[i].value;
+        page_direntry_set_address(&new_pml4->entries[i], pdpt_dst_phys >> 12);
     }
 
     return new_pml4;
