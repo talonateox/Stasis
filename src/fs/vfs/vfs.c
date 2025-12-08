@@ -163,18 +163,47 @@ vfs_node_t* vfs_create(const char* path, vfs_node_type_t type) {
     return node;
 }
 
-int vfs_unlink(const char* path) {
+int vfs_unlink(const char* path, bool recursive) {
     vfs_node_t* node = vfs_lookup(path);
     if (node == NULL) return -1;
     if (node == root_node) return -1;
 
-    if (node->type == VFS_DIRECTORY && node->children != NULL) {
-        return -1;
+    if(node->type == VFS_DIRECTORY) {
+        if(node->children != NULL) {
+            if(!recursive) return -1;
+
+            vfs_node_t* child = node->children;
+            if(child != NULL) {
+                vfs_node_t* next = child->next;
+
+                char child_path[VFS_MAX_PATH];
+                size_t path_len = strlen(path);
+                size_t name_len = strlen(child->name);
+
+                if(path_len + 1 + name_len + 1 > VFS_MAX_PATH) {
+                    return -1;
+                }
+
+                memcpy(child_path, path, path_len);
+                if(path_len > 0 && path[path_len - 1] != '/') {
+                    child_path[path_len] = '/';
+                    path_len++;
+                }
+                memcpy(child_path + path_len, child->name, name_len);
+                child_path[path_len + name_len] = '\0';
+
+                int result = vfs_unlink(child_path, true);
+                if(result < 0) {
+                    return result;
+                }
+                child = next;
+            }
+        }
     }
 
-    if (node->ops && node->ops->unlink) {
-        int result = node->ops->unlink(node);
-        if (result < 0) return result;
+    if(node->ops && node->ops->unlink) {
+        int res = node->ops->unlink(node);
+        if(res < 0) return res;
     }
 
     remove_child(node->parent, node);

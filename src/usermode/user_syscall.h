@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <stdbool.h>
 
 #include "../syscall/syscall.h"
 
@@ -106,8 +107,8 @@ static inline int readdir(int fd, char* name, size_t size) {
     return syscall3(SYS_READDIR, fd, (uint64_t)name, size);
 }
 
-static inline int unlink(const char* path) {
-    return syscall1(SYS_UNLINK, (uint64_t)path);
+static inline int unlink(const char* path, bool recursive) {
+    return syscall2(SYS_UNLINK, (uint64_t)path, recursive);
 }
 
 static inline void print(const char* s) {

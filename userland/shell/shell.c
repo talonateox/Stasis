@@ -259,12 +259,29 @@ static void cmd_rm(const char* args) {
     char path[256];
     build_path(path, args);
 
-    if (unlink(path) < 0) {
+    if (unlink(path, false) < 0) {
         print("rm: failed to remove '");
         print(path);
         print("'\n");
     }
 }
+
+static void cmd_rmdir(const char* args) {
+    if (args[0] == '\0') {
+        print("rm: missing file name\n");
+        return;
+    }
+
+    char path[256];
+    build_path(path, args);
+
+    if (unlink(path, true) < 0) {
+        print("rm: failed to remove '");
+        print(path);
+        print("'\n");
+    }
+}
+
 
 static void cmd_help(void) {
     print("STASIS SHELL COMMANDS:\n");
@@ -281,6 +298,7 @@ static void cmd_help(void) {
     print("  cat <file>    - display file contents\n");
     print("  write <f> <t> - write text to file\n");
     print("  rm <file>     - remove file\n");
+    print("  rmdir <file>  - removes directory and its contents recursively\n");
 }
 
 static void process_command(void) {
@@ -335,6 +353,8 @@ static void process_command(void) {
         cmd_write(args);
     } else if (streq(cmd, "rm")) {
         cmd_rm(args);
+    } else if (streq(cmd, "rmdir")) {
+        cmd_rmdir(args);
     } else {
         print("Unknown command: ");
         print(cmd);

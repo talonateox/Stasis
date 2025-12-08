@@ -148,29 +148,24 @@ page_table_t* page_table_clone_for_user() {
 
     memset(new_pml4, 0, 0x1000);
 
-    // Get current CR3 (the running task's page table)
     uint64_t cr3;
     asm volatile("mov %%cr3, %0" : "=r"(cr3));
     page_table_t* current_pml4 = (page_table_t*)(cr3 + _g_page_table_manager.offset);
     uint64_t offset = _g_page_table_manager.offset;
 
-    // Share kernel space (upper half) - these are the same for all processes
     for (int i = 256; i < 512; i++) {
         new_pml4->entries[i] = current_pml4->entries[i];
     }
 
-    // Deep copy user space (lower half) so parent and child have independent mappings
     for (int i = 0; i < 256; i++) {
         if (!page_direntry_get_flag(&current_pml4->entries[i], PAGE_PRESENT)) {
             continue;
         }
-
         uint64_t pdpt_phys = page_direntry_get_address(&current_pml4->entries[i]) << 12;
         page_table_t* pdpt_src = (page_table_t*)(pdpt_phys + offset);
 
         page_table_t* pdpt_dst = deep_copy_page_table(pdpt_src, 3);
         if (pdpt_dst == NULL) {
-            // TODO: cleanup
             return NULL;
         }
 

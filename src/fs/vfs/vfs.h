@@ -59,7 +59,7 @@ void vfs_init();
 
 vfs_node_t* vfs_lookup(const char* path);
 vfs_node_t* vfs_create(const char* path, vfs_node_type_t type);
-int vfs_unlink(const char* path);
+int vfs_unlink(const char* path, bool recursive);
 
 int vfs_open(const char* path, int flags);
 int vfs_close(int fd);

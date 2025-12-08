@@ -18,7 +18,7 @@ void terminal_init(struct limine_framebuffer* fb) {
     _g_term.x = 0;
     _g_term.y = 1;
     _g_term.font = &glyphs[0][0];
-    _g_term.scale = 1;
+    _g_term.scale = 2;
 
     _g_term.fb = fb;
     _g_term.max_x = fb->width / (FONT_GLYPH_WIDTH * _g_term.scale);

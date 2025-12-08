@@ -51,7 +51,7 @@ void syscall_init() {
 
 static int sys_exec(const char* path) {
     printkf_info("sys_exec: called with path='%s'\n", path);
-    
+
     int fd = vfs_open(path, O_RDONLY);
     if (fd < 0) {
         printkf_error("exec: failed to open '%s'\n", path);
@@ -153,7 +153,6 @@ uint64_t syscall_handler(uint64_t syscall, uint64_t arg1, uint64_t arg2, uint64_
         case SYS_WAITPID: {
             uint32_t pid = (uint32_t)arg1;
             int result = task_waitpid(pid);
-            printkf_info("waitpid returning %d\n", result);
             return result;
         }
         case SYS_WRITE: {
@@ -214,7 +213,9 @@ uint64_t syscall_handler(uint64_t syscall, uint64_t arg1, uint64_t arg2, uint64_
         }
         case SYS_UNLINK: {
             const char* path = (const char*)arg1;
-            return vfs_unlink(path);
+            bool recursive = (bool)arg2;
+
+            return vfs_unlink(path, recursive);
         }
         default: {
             printkf_error("syscall_handler(): unknown syscall: %llu\n", syscall);
