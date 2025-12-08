@@ -24,7 +24,7 @@ void page_fault_handler(struct interrupt_frame* frame, uint64_t error_code) {
     if (error_code & 0x4) {
         task_t* current = task_current();
         if (current != NULL) {
-            printkf("\n[SEGFAULT] Process %d killed: fault at 0x%lx (error 0x%lx)\n",
+            printkf("\nsegfault(): fault at 0x%lx (error 0x%lx)\n",
                     current->pid, fault_addr, error_code);
             task_exit(-11);
             scheduler_schedule();
