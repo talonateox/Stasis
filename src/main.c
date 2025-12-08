@@ -22,9 +22,6 @@
 #include "drivers/timer/timer.h"
 #include "drivers/keyboard/keyboard.h"
 
-#include "programs/shell_elf.h"
-#include "programs/hello_elf.h"
-
 #include "usermode/usermode.h"
 #include "syscall/syscall.h"
 
@@ -75,7 +72,7 @@ static void hcf() {
     }
 }
 
-void create_program(const char* path, unsigned char elf[], unsigned int len) {
+void create_program(const char* path, uint8_t elf[], unsigned int len) {
     int fd = vfs_open(path, O_CREAT | O_WRONLY | O_TRUNC);
     if (fd < 0) {
         printkf_error("Failed to create '%s'\n", path);
@@ -84,6 +81,18 @@ void create_program(const char* path, unsigned char elf[], unsigned int len) {
 
     vfs_write(fd, elf, len);
     vfs_close(fd);
+}
+
+void create_programs() {
+    static const uint8_t shell_elf[] = {
+        #embed "programs/shell.elf"
+    };
+    static const uint8_t hello_elf[] = {
+        #embed "programs/hello.elf"
+    };
+
+    create_program("/system/cmd/sh", shell_elf, sizeof(shell_elf));
+    create_program("/hello", hello_elf, sizeof(hello_elf));
 }
 
 void setup_fs() {
@@ -141,8 +150,7 @@ void kmain() {
 
     setup_fs();
 
-    create_program("/system/cmd/sh", shell, shell_len);
-    create_program("/hello", hello, hello_len);
+    create_programs();
 
     printkf_info("FREE RAM: %k%llu%k\n", 0xcccc66, pfallocator_get_free_ram(), 0xffffff);
     printkf_info("USED RAM: %k%llu%k\n", 0xcccc66, pfallocator_get_used_ram(), 0xffffff);
