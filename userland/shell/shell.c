@@ -67,13 +67,37 @@ static void cmd_exec(const char* args) {
         return;
     }
 
+    char arg_buf[256];
+    char* argv[16];
+    int argc = 0;
+
+    strcpy(arg_buf, args);
+    char* p = arg_buf;
+
+    while (*p && argc < 15) {
+        while (*p == ' ') p++;
+        if (*p == '\0') break;
+
+        argv[argc++] = p;
+
+        while (*p && *p != ' ') p++;
+        if (*p) *p++ = '\0';
+    }
+    argv[argc] = (char*)0;
+
+    if (argc == 0) {
+        print("exec: missing program path\n");
+        return;
+    }
+
     char path[256];
-    build_path(path, args);
+    build_path(path, argv[0]);
+    argv[0] = path;
 
     int pid = fork();
 
     if (pid == 0) {
-        exec(path);
+        exec(path, argv);
         print("exec: failed to execute '");
         print(path);
         print("'\n");

@@ -6,9 +6,31 @@
 #include "../drivers/timer/pit.h"
 #include "../mem/alloc/page_frame_alloc.h"
 #include "../drivers/keyboard/keyboard.h"
+#include "../mem/paging/paging.h"
+#include "../task/task.h"
+#include "../task/scheduler.h"
 
 __attribute__((interrupt))
 void page_fault_handler(struct interrupt_frame* frame, uint64_t error_code) {
+    uint64_t fault_addr;
+    asm volatile("mov %%cr2, %0" : "=r"(fault_addr));
+
+    if ((error_code & 0x7) == 0x7) {
+        if (page_handle_cow_fault((void*)fault_addr)) {
+            return;
+        }
+    }
+
+    if (error_code & 0x4) {
+        task_t* current = task_current();
+        if (current != NULL) {
+            printkf("\n[SEGFAULT] Process %d killed: fault at 0x%lx (error 0x%lx)\n",
+                    current->pid, fault_addr, error_code);
+            task_exit(-11);
+            scheduler_schedule();
+        }
+    }
+
     panic_with_frame(frame, error_code, "PAGE FAULT");
 }
 

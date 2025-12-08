@@ -109,4 +109,4 @@ bool elf_validate(const void* data);
 elf64_ehdr_t* elf_get_header(const void* data);
 elf64_phdr_t* elf_get_program_header(const void* data, int index);
 
-int elf_load(const void* elf_data, size_t size, uint64_t* out_entry, page_table_t* page_table);
+int elf_load(const void* elf_data, uint64_t* out_entry, page_table_t* page_table);

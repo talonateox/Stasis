@@ -123,6 +123,10 @@ static page_table_t* deep_copy_page_table(page_table_t* src, int level) {
         }
 
         if (level == 1) {
+            if (page_direntry_get_flag(&src->entries[i], PAGE_READ_WRITE)) {
+                page_direntry_set_flag(&src->entries[i], PAGE_READ_WRITE, false);
+                page_direntry_set_flag(&src->entries[i], PAGE_COW, true);
+            }
             dst->entries[i] = src->entries[i];
         } else {
             uint64_t child_phys = page_direntry_get_address(&src->entries[i]) << 12;
@@ -227,4 +231,57 @@ void* page_table_get_physical_from(page_table_t* pml4, void* virt) {
 
     uint64_t page_phys = page_direntry_get_address(&pde) << 12;
     return (void*)page_phys;
+}
+
+page_direntry_t* page_table_get_pte(page_table_t* pml4, void* virt) {
+    page_map_indexer_t indexer = page_map_indexer_new((uint64_t)virt);
+    uint64_t offset = _g_page_table_manager.offset;
+
+    page_direntry_t* pde = &pml4->entries[indexer.pdp];
+    if (!page_direntry_get_flag(pde, PAGE_PRESENT)) return NULL;
+
+    uint64_t pdp_phys = page_direntry_get_address(pde) << 12;
+    page_table_t* pdp = (page_table_t*)(pdp_phys + offset);
+
+    pde = &pdp->entries[indexer.pd];
+    if (!page_direntry_get_flag(pde, PAGE_PRESENT)) return NULL;
+
+    uint64_t pd_phys = page_direntry_get_address(pde) << 12;
+    page_table_t* pd = (page_table_t*)(pd_phys + offset);
+
+    pde = &pd->entries[indexer.pt];
+    if (!page_direntry_get_flag(pde, PAGE_PRESENT)) return NULL;
+
+    uint64_t pt_phys = page_direntry_get_address(pde) << 12;
+    page_table_t* pt = (page_table_t*)(pt_phys + offset);
+
+    return &pt->entries[indexer.p];
+}
+
+bool page_handle_cow_fault(void* fault_addr) {
+    uint64_t cr3;
+    asm volatile("mov %%cr3, %0" : "=r"(cr3));
+    page_table_t* pml4 = (page_table_t*)(cr3 + _g_page_table_manager.offset);
+
+    page_direntry_t* pte = page_table_get_pte(pml4, fault_addr);
+    if (pte == NULL) return false;
+    if (!page_direntry_get_flag(pte, PAGE_PRESENT)) return false;
+    if (!page_direntry_get_flag(pte, PAGE_COW)) return false;
+
+    uint64_t old_phys = page_direntry_get_address(pte) << 12;
+    void* old_page = (void*)(old_phys + _g_page_table_manager.offset);
+
+    void* new_page = pfallocator_request_page();
+    if (new_page == NULL) return false;
+
+    memcpy(new_page, old_page, 0x1000);
+
+    uint64_t new_phys = (uint64_t)new_page - _g_page_table_manager.offset;
+    page_direntry_set_address(pte, new_phys >> 12);
+    page_direntry_set_flag(pte, PAGE_READ_WRITE, true);
+    page_direntry_set_flag(pte, PAGE_COW, false);
+
+    asm volatile("invlpg (%0)" : : "r"(fault_addr) : "memory");
+
+    return true;
 }

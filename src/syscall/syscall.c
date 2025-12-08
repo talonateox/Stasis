@@ -96,7 +96,7 @@ static int sys_exec(const char* path) {
     }
 
     uint64_t entry_point = 0;
-    if (elf_load(elf_data, size, &entry_point, new_page_table) < 0) {
+    if (elf_load(elf_data, &entry_point, new_page_table) < 0) {
         free(elf_data);
         printkf_error("exec: failed to load '%s'\n", path);
         return -1;
@@ -147,7 +147,7 @@ uint64_t syscall_handler(uint64_t syscall, uint64_t arg1, uint64_t arg2, uint64_
         }
         case SYS_FORK: {
             task_t* child = task_fork();
-            return child ? child->pid : -1;
+            return child ? child->pid : (uint64_t)-1;
         }
         case SYS_WAITPID: {
             uint32_t pid = (uint32_t)arg1;

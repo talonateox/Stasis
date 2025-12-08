@@ -156,13 +156,6 @@ static void print_uint(unsigned long long value, int base) {
     }
 }
 
-static void print_int(long long value) {
-    if(value < 0) {
-        putkc('-');
-        value = -value;
-    }
-    print_uint((unsigned long long)value, 10);
-}
 static int count_digits(unsigned long long v, int base) {
     if(v == 0) return 1;
     int count = 0;

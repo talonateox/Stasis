@@ -110,6 +110,8 @@ task_t* task_create(void (*entry_point)(), uint64_t stack_size) {
 }
 
 task_t* task_create_user(void (*entry_point)(), uint64_t stack_size) {
+    (void)stack_size;
+
     task_t* task = (task_t*)malloc(sizeof(task_t));
     if(task == NULL) {
         printkf_error("task_create_user(): failed to allocate task\n");
@@ -203,7 +205,7 @@ task_t* task_create_elf(const char* path, uint64_t stack_size) {
     }
 
     uint64_t entry = 0;
-    if (elf_load(elf_data, size, &entry, task->page_table) < 0) {
+    if (elf_load(elf_data, &entry, task->page_table) < 0) {
         printkf_error("task_create_from_elf(): failed to load '%s'\n", path);
         free(elf_data);
         return NULL;
@@ -307,6 +309,36 @@ task_t* task_fork() {
     return child;
 }
 
+static void task_remove_from_list(task_t* task) {
+    uint64_t flags = spin_lock(&task_lock);
+
+    if (task_list == task) {
+        task_list = task->next;
+    } else {
+        task_t* prev = task_list;
+        while (prev != NULL && prev->next != task) {
+            prev = prev->next;
+        }
+        if (prev != NULL) {
+            prev->next = task->next;
+        }
+    }
+
+    spin_unlock(&task_lock, flags);
+}
+
+static void task_destroy(task_t* task) {
+    if (task == NULL) return;
+
+    scheduler_remove_task(task);
+    task_remove_from_list(task);
+
+    if (task->stack) free(task->stack);
+    if (task->user_stack) pfallocator_free_page(task->user_stack);
+
+    free(task);
+}
+
 int task_waitpid(uint32_t pid) {
     task_t* child = task_find_by_pid(pid);
     if (child == NULL) {
@@ -323,6 +355,8 @@ int task_waitpid(uint32_t pid) {
     }
 
     int exit_code = child->exit_code;
+
+    task_destroy(child);
 
     return exit_code;
 }

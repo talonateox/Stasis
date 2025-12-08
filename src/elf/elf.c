@@ -49,7 +49,7 @@ elf64_phdr_t* elf_get_program_header(const void* data, int index) {
     return (elf64_phdr_t*)((uint8_t*)data + offset);
 }
 
-int elf_load(const void* elf_data, size_t size, uint64_t* out_entry, page_table_t* page_table) {
+int elf_load(const void* elf_data, uint64_t* out_entry, page_table_t* page_table) {
     if (!elf_validate(elf_data)) {
         printkf_error("elf_load(): invalid ELF file\n");
         return -1;

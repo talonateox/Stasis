@@ -72,7 +72,7 @@ static void hcf() {
     }
 }
 
-void create_program(const char* path, uint8_t elf[], unsigned int len) {
+void create_program(const char* path, const unsigned char* elf, unsigned int len) {
     int fd = vfs_open(path, O_CREAT | O_WRONLY | O_TRUNC);
     if (fd < 0) {
         printkf_error("Failed to create '%s'\n", path);

@@ -13,9 +13,7 @@ typedef enum {
     PAGE_CACHE_DISABLED = 4,
     PAGE_ACCESSED = 5,
     PAGE_LARGER_PAGES = 6,
-    PAGE_CUSTOM0 = 7,
-    PAGE_CUSTOM1 = 8,
-    PAGE_CUSTOM2 = 9,
+    PAGE_COW = 9,
     PAGE_NX = 63,
 } page_direntry_flag_t;
 
@@ -42,3 +40,5 @@ void page_map_memory_to(page_table_t* pml4, void* virt, void* phys);
 size_t page_get_offset();
 page_table_t* page_get_pml4();
 void* page_table_get_physical_from(page_table_t* pml4, void* virt);
+page_direntry_t* page_table_get_pte(page_table_t* pml4, void* virt);
+bool page_handle_cow_fault(void* fault_addr);
