@@ -21,6 +21,8 @@ typedef struct {
     uint64_t ss;
 } __attribute__((packed)) cpu_state_t;
 
+#define USER_STACK_TOP 0x7FFFFFF00000ULL
+
 typedef struct task {
     uint32_t pid;
     uint32_t parent_pid;
@@ -33,6 +35,7 @@ typedef struct task {
     struct task* next;
     uint64_t wake_tick;
     void* user_stack;
+    uint64_t user_stack_virt;
     uint64_t user_stack_size;
     uint8_t is_user;
     int exit_code;
@@ -48,7 +51,7 @@ void task_yield();
 void task_block();
 void task_unblock(task_t* task);
 void sleep_ms(uint64_t ms);
-void task_exit();
+void task_exit(int code);
 
 task_t* task_fork();
 int task_waitpid(uint32_t pid);

@@ -1,6 +1,7 @@
 #include "task.h"
 
 #include "../mem/alloc/heap.h"
+#include "../mem/alloc/page_frame_alloc.h"
 #include "../io/terminal.h"
 #include "../sync/spinlock.h"
 #include "../drivers/timer/timer.h"
@@ -42,14 +43,17 @@ static void task_entry_wrapper() {
 static void user_task_entry_wrapper() {
     task_t* self = task_current();
     if(self == NULL || self->entry_point == NULL) {
-        task_exit();
+        task_exit(0);
     }
 
-    uint64_t user_rsp = (uint64_t)self->user_stack + self->user_stack_size;
+    uint64_t user_rsp = self->user_stack_virt + self->user_stack_size;
     user_rsp &= ~0xFULL;
 
     uint64_t kernel_stack_top = (uint64_t)self->stack + self->stack_size;
     tss_set_kernel_stack(kernel_stack_top);
+
+    extern uint64_t current_kernel_stack;
+    current_kernel_stack = kernel_stack_top;
 
     jump_to_usermode((uint64_t)self->entry_point, user_rsp);
 }
@@ -120,23 +124,29 @@ task_t* task_create_user(void (*entry_point)(), uint64_t stack_size) {
     }
     task->stack_size = 8192;
 
-    task->user_stack = malloc(stack_size);
+    task->page_table = page_table_create_user();
+    if(task->page_table == NULL) {
+        printkf_error("task_create_user(): failed to create page table\n");
+        free(task->stack);
+        free(task);
+        return NULL;
+    }
+
+    task->user_stack_size = 0x1000;
+    task->user_stack = pfallocator_request_page();
     if(task->user_stack == NULL) {
         printkf_error("task_create_user(): failed to allocate user stack\n");
         free(task->stack);
         free(task);
         return NULL;
     }
-    task->user_stack_size = stack_size;
+    memset(task->user_stack, 0, 0x1000);
 
-    task->page_table = page_table_create_user();
-    if(task->page_table == NULL) {
-        printkf_error("task_create_user(): failed to create page table\n");
-        free(task->user_stack);
-        free(task->stack);
-        free(task);
-        return NULL;
-    }
+    task->user_stack_virt = USER_STACK_TOP - task->user_stack_size;
+
+    uint64_t hhdm_offset = page_get_offset();
+    void* phys_addr = (void*)((uint64_t)task->user_stack - hhdm_offset);
+    page_map_memory_to(task->page_table, (void*)task->user_stack_virt, phys_addr);
 
     task->pid = next_pid++;
     task->parent_pid = 0;
@@ -240,23 +250,28 @@ task_t* task_fork() {
     child->stack_size = parent->stack_size;
     memcpy(child->stack, parent->stack, parent->stack_size);
 
-    child->user_stack = malloc(parent->user_stack_size);
-    if (child->user_stack == NULL) {
-        free(child->stack);
-        free(child);
-        return NULL;
-    }
     child->user_stack_size = parent->user_stack_size;
-    memcpy(child->user_stack, parent->user_stack, parent->user_stack_size);
+    child->user_stack_virt = parent->user_stack_virt;
 
     child->page_table = page_table_clone_for_user();
     if (child->page_table == NULL) {
         printkf_error("fork(): failed to clone page table\n");
-        free(child->user_stack);
         free(child->stack);
         free(child);
         return NULL;
     }
+
+    uint64_t hhdm_offset = page_get_offset();
+    child->user_stack = pfallocator_request_page();
+    if (child->user_stack == NULL) {
+        printkf_error("fork(): failed to allocate user stack\n");
+        free(child->stack);
+        free(child);
+        return NULL;
+    }
+    memcpy(child->user_stack, parent->user_stack, 0x1000);
+    void* phys_addr = (void*)((uint64_t)child->user_stack - hhdm_offset);
+    page_map_memory_to(child->page_table, (void*)child->user_stack_virt, phys_addr);
 
     child->pid = next_pid++;
     child->parent_pid = parent->pid;
@@ -267,14 +282,12 @@ task_t* task_fork() {
     child->exit_code = 0;
 
     extern void fork_child_return();
-
     extern uint64_t saved_syscall_rsp;
 
-    uint64_t syscall_offset = saved_syscall_rsp - (uint64_t)parent->user_stack;
-    uint64_t child_syscall_rsp = (uint64_t)child->user_stack + syscall_offset;
+    uint64_t syscall_offset = saved_syscall_rsp - (uint64_t)parent->stack;
+    uint64_t child_syscall_rsp = (uint64_t)child->stack + syscall_offset;
 
     uint64_t* child_sp = (uint64_t*)(child_syscall_rsp - 7 * sizeof(uint64_t));
-
     child_sp[0] = 0;
     child_sp[1] = 0;
     child_sp[2] = 0;
@@ -340,17 +353,11 @@ void task_switch(task_t* next) {
     uint64_t kernel_stack_top = (uint64_t)next->stack + next->stack_size;
     tss_set_kernel_stack(kernel_stack_top);
 
-    printkf_info("switch: %d->%d ctx=%llx pt=%llx\n",
-                 old_task ? old_task->pid : 0, next->pid,
-                 (uint64_t)next->context, (uint64_t)next->page_table);
+    extern uint64_t current_kernel_stack;
+    current_kernel_stack = kernel_stack_top;
 
     if(old_task != NULL) {
         task_switch_impl(&old_task->context, next->context);
-        uint64_t actual_cr3;
-        asm volatile("mov %%cr3, %0" : "=r"(actual_cr3));
-        printkf_info("returned to PID=%d, cr3=%llx, expected pt=%llx\n",
-                     current_task->pid, actual_cr3,
-                     (uint64_t)current_task->page_table - hhdm_offset);
     } else {
         task_switch_impl(NULL, next->context);
     }
@@ -401,22 +408,19 @@ void sleep_ms(uint64_t ms) {
     scheduler_schedule();
 }
 
-void task_exit() {
+void task_exit(int code) {
     task_t* current = task_current();
-    printkf_info("task_exit(): PID=%d exiting\n", current ? current->pid : 0);
 
     if(current != NULL) {
         current->state = TASK_TERMINATED;
-        printkf_info("task_exit(): marked PID=%d as TERMINATED\n", current->pid);
+        current->exit_code = code;
     }
-
-    printkf_info("task_exit(): calling scheduler_schedule()\n");
 
     cli();
 
     scheduler_schedule();
 
-    printkf_error("task_exit(): SHOULD NEVER REACH HERE! Looping forever...\n");
+    printkf_error("task_exit(): SHOULD NEVER REACH HERE\n");
 
     while(1) {
         asm volatile("cli; hlt");

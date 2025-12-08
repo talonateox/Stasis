@@ -5,6 +5,7 @@
 #include "../drivers/keyboard/keyboard.h"
 #include "../fs/vfs/vfs.h"
 #include "../elf/elf.h"
+#include "../std/string.h"
 #include "../mem/alloc/heap.h"
 #include "../mem/paging/paging.h"
 #include "../mem/paging/page_table_manager.h"
@@ -50,8 +51,6 @@ void syscall_init() {
 }
 
 static int sys_exec(const char* path) {
-    printkf_info("sys_exec: called with path='%s'\n", path);
-
     int fd = vfs_open(path, O_RDONLY);
     if (fd < 0) {
         printkf_error("exec: failed to open '%s'\n", path);
@@ -105,19 +104,19 @@ static int sys_exec(const char* path) {
 
     free(elf_data);
 
-    printkf_info("exec: entry_point = 0x%llx\n", entry_point);
-
     current->page_table = new_page_table;
     current->entry_point = (void(*)())entry_point;
 
     uint64_t hhdm_offset = page_get_offset();
+    void* phys_page = (void*)((uint64_t)current->user_stack - hhdm_offset);
+    page_map_memory_to(new_page_table, (void*)current->user_stack_virt, phys_page);
+    memset(current->user_stack, 0, 0x1000);
+
     uint64_t new_cr3_phys = (uint64_t)new_page_table - hhdm_offset;
     asm volatile("mov %0, %%cr3" : : "r"(new_cr3_phys) : "memory");
 
-    uint64_t user_rsp = (uint64_t)current->user_stack + current->user_stack_size;
+    uint64_t user_rsp = current->user_stack_virt + current->user_stack_size;
     user_rsp &= ~0xFULL;
-
-    printkf_ok("exec: jumping to 0x%llx with stack 0x%llx\n", entry_point, user_rsp);
 
     jump_to_usermode(entry_point, user_rsp);
 
@@ -127,7 +126,7 @@ static int sys_exec(const char* path) {
 uint64_t syscall_handler(uint64_t syscall, uint64_t arg1, uint64_t arg2, uint64_t arg3) {
     switch(syscall) {
         case SYS_EXIT: {
-            task_exit();
+            task_exit(arg1);
             return 0;
         }
         case SYS_YIELD: {
