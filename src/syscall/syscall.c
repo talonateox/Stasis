@@ -104,6 +104,7 @@ static int sys_exec(const char* path) {
 
     free(elf_data);
 
+    page_table_t* old_page_table = current->page_table;
     current->page_table = new_page_table;
     current->entry_point = (void(*)())entry_point;
 
@@ -114,6 +115,8 @@ static int sys_exec(const char* path) {
 
     uint64_t new_cr3_phys = (uint64_t)new_page_table - hhdm_offset;
     asm volatile("mov %0, %%cr3" : : "r"(new_cr3_phys) : "memory");
+
+    page_table_free_structure(old_page_table);
 
     uint64_t user_rsp = current->user_stack_virt + current->user_stack_size;
     user_rsp &= ~0xFULL;

@@ -63,7 +63,7 @@ bool page_table_map(page_table_manager_t* manager, void* virt, void* phys) {
         pt = (page_table_t*)(pt_phys + manager->offset);
     }
 
-    pde = pt->entries[indexer.p];
+    pde.value = 0;
     page_direntry_set_address(&pde, (uint64_t)phys >> 12);
     page_direntry_set_flag(&pde, PAGE_PRESENT, true);
     page_direntry_set_flag(&pde, PAGE_READ_WRITE, true);

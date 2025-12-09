@@ -178,6 +178,8 @@ page_table_t* page_table_clone_for_user() {
         page_direntry_set_address(&new_pml4->entries[i], pdpt_dst_phys >> 12);
     }
 
+    asm volatile("mov %0, %%cr3" : : "r"(cr3) : "memory");
+
     return new_pml4;
 }
 
@@ -194,6 +196,53 @@ page_table_t* page_table_create_user() {
     }
 
     return new_pml4;
+}
+
+static void destroy_page_table_recursive(page_table_t* table, int level, bool free_leaf_pages) {
+    uint64_t offset = _g_page_table_manager.offset;
+
+    for (int i = 0; i < 512; i++) {
+        if (!page_direntry_get_flag(&table->entries[i], PAGE_PRESENT)) {
+            continue;
+        }
+
+        if (level > 1) {
+            uint64_t child_phys = page_direntry_get_address(&table->entries[i]) << 12;
+            page_table_t* child = (page_table_t*)(child_phys + offset);
+            destroy_page_table_recursive(child, level - 1, free_leaf_pages);
+        } else if (free_leaf_pages) {
+            uint64_t page_phys = page_direntry_get_address(&table->entries[i]) << 12;
+            void* page = (void*)(page_phys + offset);
+            pfallocator_free_page(page);
+        }
+    }
+
+    pfallocator_free_page(table);
+}
+
+static void page_table_destroy_internal(page_table_t* pml4, bool free_leaf_pages) {
+    if (pml4 == NULL) return;
+    if (pml4 == _g_page_table_manager.pml4) return;
+
+    for (int i = 0; i < 256; i++) {
+        if (!page_direntry_get_flag(&pml4->entries[i], PAGE_PRESENT)) {
+            continue;
+        }
+
+        uint64_t pdpt_phys = page_direntry_get_address(&pml4->entries[i]) << 12;
+        page_table_t* pdpt = (page_table_t*)(pdpt_phys + _g_page_table_manager.offset);
+        destroy_page_table_recursive(pdpt, 3, free_leaf_pages);
+    }
+
+    pfallocator_free_page(pml4);
+}
+
+void page_table_destroy_user(page_table_t* pml4) {
+    page_table_destroy_internal(pml4, true);
+}
+
+void page_table_free_structure(page_table_t* pml4) {
+    page_table_destroy_internal(pml4, false);
 }
 
 page_table_t* page_get_pml4() {

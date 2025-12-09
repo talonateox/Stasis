@@ -33,6 +33,8 @@ uint64_t page_direntry_get_address(page_direntry_t* entry);
 void page_table_init(uint64_t offset, uint64_t kernel_start, uint64_t kernel_end);
 page_table_t* page_table_create_user();
 page_table_t* page_table_clone_for_user();
+void page_table_destroy_user(page_table_t* pml4);
+void page_table_free_structure(page_table_t* pml4);
 
 void page_map_memory(void* virt, void* phys);
 void page_map_memory_to(page_table_t* pml4, void* virt, void* phys);

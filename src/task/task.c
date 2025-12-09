@@ -2,6 +2,7 @@
 
 #include "../mem/alloc/heap.h"
 #include "../mem/alloc/page_frame_alloc.h"
+#include "../mem/paging/paging.h"
 #include "../io/terminal.h"
 #include "../sync/spinlock.h"
 #include "../drivers/timer/timer.h"
@@ -335,6 +336,7 @@ static void task_destroy(task_t* task) {
 
     if (task->stack) free(task->stack);
     if (task->user_stack) pfallocator_free_page(task->user_stack);
+    if (task->page_table) page_table_free_structure(task->page_table);
 
     free(task);
 }
