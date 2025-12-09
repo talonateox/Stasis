@@ -17,9 +17,16 @@ void pfallocator_init(size_t offset) {
 
     void* largest_free_segment = NULL;
     size_t largest_free_segment_size = 0;
+    uint64_t highest_address = 0;
 
     for(size_t i = 0; i < memmap_get_entry_count(); i++) {
         struct limine_memmap_entry* entry = memmap_get_entry(i);
+
+        uint64_t region_end = entry->base + entry->length;
+        if(region_end > highest_address) {
+            highest_address = region_end;
+        }
+
         if(entry->type == LIMINE_MEMMAP_USABLE) {
             if(entry->length > largest_free_segment_size) {
                 largest_free_segment = (void*)(entry->base + offset);
@@ -28,8 +35,7 @@ void pfallocator_init(size_t offset) {
         }
     }
 
-    uint64_t mem_size = memmap_get_total();
-    _g_alloc.page_count = mem_size / PAGE_SIZE;
+    _g_alloc.page_count = highest_address / PAGE_SIZE;
 
     uint64_t refcount_array_size = _g_alloc.page_count * sizeof(uint16_t);
     uint64_t refcount_pages = (refcount_array_size + PAGE_SIZE - 1) / PAGE_SIZE;
@@ -83,9 +89,16 @@ void pfallocator_ref_page(void* address) {
     if((uint64_t)address < _g_alloc.offset) return;
 
     uint64_t i = ((uint64_t)address - _g_alloc.offset) / PAGE_SIZE;
-    if(i >= _g_alloc.page_count) return;
+    if(i >= _g_alloc.page_count) {
+        printkf_error("ref_page(): index %llu >= page_count %llu (addr %p)\n", i, _g_alloc.page_count, address);
+        return;
+    }
 
-    if(_g_alloc.refcounts[i] == 0 || _g_alloc.refcounts[i] == UINT16_MAX) return;
+    if(_g_alloc.refcounts[i] == 0) {
+        printkf_error("ref_page(): page %p (index %llu) has refcount 0!\n", address, i);
+        return;
+    }
+    if(_g_alloc.refcounts[i] == UINT16_MAX) return;
 
     _g_alloc.refcounts[i]++;
 }
@@ -94,7 +107,10 @@ uint16_t pfallocator_unref_page(void* address) {
     if((uint64_t)address < _g_alloc.offset) return UINT16_MAX;
 
     uint64_t i = ((uint64_t)address - _g_alloc.offset) / PAGE_SIZE;
-    if(i >= _g_alloc.page_count) return UINT16_MAX;
+    if(i >= _g_alloc.page_count) {
+        printkf_error("unref_page(): index %llu >= page_count %llu (addr %p)\n", i, _g_alloc.page_count, address);
+        return UINT16_MAX;
+    }
 
     if(_g_alloc.refcounts[i] == 0) return 0;
 
