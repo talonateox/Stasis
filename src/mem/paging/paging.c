@@ -128,6 +128,10 @@ static page_table_t* deep_copy_page_table(page_table_t* src, int level) {
                 page_direntry_set_flag(&src->entries[i], PAGE_COW, true);
             }
             dst->entries[i] = src->entries[i];
+
+            uint64_t page_phys = page_direntry_get_address(&src->entries[i]) << 12;
+            void* page = (void*)(page_phys + offset);
+            pfallocator_ref_page(page);
         } else {
             uint64_t child_phys = page_direntry_get_address(&src->entries[i]) << 12;
             page_table_t* child_src = (page_table_t*)(child_phys + offset);
@@ -241,10 +245,6 @@ void page_table_destroy_user(page_table_t* pml4) {
     page_table_destroy_internal(pml4, true);
 }
 
-void page_table_free_structure(page_table_t* pml4) {
-    page_table_destroy_internal(pml4, false);
-}
-
 page_table_t* page_get_pml4() {
     return _g_page_table_manager.pml4;
 }
@@ -320,15 +320,24 @@ bool page_handle_cow_fault(void* fault_addr) {
     uint64_t old_phys = page_direntry_get_address(pte) << 12;
     void* old_page = (void*)(old_phys + _g_page_table_manager.offset);
 
-    void* new_page = pfallocator_request_page();
-    if (new_page == NULL) return false;
+    uint16_t refcount = pfallocator_get_refcount(old_page);
 
-    memcpy(new_page, old_page, 0x1000);
+    if (refcount == 1) {
+        page_direntry_set_flag(pte, PAGE_READ_WRITE, true);
+        page_direntry_set_flag(pte, PAGE_COW, false);
+    } else {
+        void* new_page = pfallocator_request_page();
+        if (new_page == NULL) return false;
 
-    uint64_t new_phys = (uint64_t)new_page - _g_page_table_manager.offset;
-    page_direntry_set_address(pte, new_phys >> 12);
-    page_direntry_set_flag(pte, PAGE_READ_WRITE, true);
-    page_direntry_set_flag(pte, PAGE_COW, false);
+        memcpy(new_page, old_page, 0x1000);
+
+        pfallocator_unref_page(old_page);
+
+        uint64_t new_phys = (uint64_t)new_page - _g_page_table_manager.offset;
+        page_direntry_set_address(pte, new_phys >> 12);
+        page_direntry_set_flag(pte, PAGE_READ_WRITE, true);
+        page_direntry_set_flag(pte, PAGE_COW, false);
+    }
 
     asm volatile("invlpg (%0)" : : "r"(fault_addr) : "memory");
 

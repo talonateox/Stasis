@@ -336,7 +336,7 @@ static void task_destroy(task_t* task) {
 
     if (task->stack) free(task->stack);
     if (task->user_stack) pfallocator_free_page(task->user_stack);
-    if (task->page_table) page_table_free_structure(task->page_table);
+    if (task->page_table) page_table_destroy_user(task->page_table);
 
     free(task);
 }
