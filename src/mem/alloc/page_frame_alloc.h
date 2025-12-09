@@ -23,7 +23,7 @@ void pfallocator_ref_page(void* address);
 uint16_t pfallocator_unref_page(void* address);
 uint16_t pfallocator_get_refcount(void* address);
 
-void pfallocator_free_page(void* address);      // Same as unref_page
+void pfallocator_free_page(void* address);
 void pfallocator_free_pages(void* address, uint64_t count);
-void pfallocator_lock_page(void* address);      // Sets refcount to 1 if 0
+void pfallocator_lock_page(void* address);
 void pfallocator_lock_pages(void* address, uint64_t count);
