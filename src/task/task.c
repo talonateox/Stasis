@@ -1,19 +1,19 @@
 #include "task.h"
 
+#include <stddef.h>
+
+#include "../arch/x86_64/gdt/gdt.h"
+#include "../drivers/timer/timer.h"
+#include "../elf/elf.h"
+#include "../fs/vfs/vfs.h"
+#include "../io/terminal.h"
 #include "../mem/alloc/heap.h"
 #include "../mem/alloc/page_frame_alloc.h"
 #include "../mem/paging/paging.h"
-#include "../io/terminal.h"
-#include "../sync/spinlock.h"
-#include "../drivers/timer/timer.h"
-#include "../usermode/usermode.h"
-#include "../arch/x86_64/gdt/gdt.h"
 #include "../std/string.h"
-#include "../fs/vfs/vfs.h"
-#include "../elf/elf.h"
+#include "../sync/spinlock.h"
+#include "../usermode/usermode.h"
 #include "scheduler.h"
-
-#include <stddef.h>
 
 static task_t* current_task = NULL;
 static task_t* task_list = NULL;
@@ -22,28 +22,29 @@ static uint32_t next_pid = 1;
 static spinlock_t task_lock = {0};
 
 extern void scheduler_schedule();
-extern void task_switch_impl(cpu_state_t** old_context, cpu_state_t* new_context);
+extern void task_switch_impl(cpu_state_t** old_context,
+                             cpu_state_t* new_context);
 
 static void task_entry_wrapper() {
     __asm__ volatile("sti");
 
     task_t* self = task_current();
-    if(self != NULL && self->entry_point != NULL) {
+    if (self != NULL && self->entry_point != NULL) {
         self->entry_point();
     }
 
-    if(self != NULL) {
+    if (self != NULL) {
         self->state = TASK_TERMINATED;
     }
 
-    while(1) {
+    while (1) {
         scheduler_schedule();
     }
 }
 
 static void user_task_entry_wrapper() {
     task_t* self = task_current();
-    if(self == NULL || self->entry_point == NULL) {
+    if (self == NULL || self->entry_point == NULL) {
         task_exit(0);
     }
 
@@ -67,13 +68,13 @@ void task_init() {
 
 task_t* task_create(void (*entry_point)(), uint64_t stack_size) {
     task_t* task = (task_t*)malloc(sizeof(task_t));
-    if(task == NULL) {
+    if (task == NULL) {
         printkf_error("task_create(): failed to allocate task\n");
         return NULL;
     }
 
     task->stack = malloc(stack_size);
-    if(task->stack == NULL) {
+    if (task->stack == NULL) {
         printkf_error("task_create(): failed to allocate task stack\n");
         free(task);
         return NULL;
@@ -114,13 +115,13 @@ task_t* task_create_user(void (*entry_point)(), uint64_t stack_size) {
     (void)stack_size;
 
     task_t* task = (task_t*)malloc(sizeof(task_t));
-    if(task == NULL) {
+    if (task == NULL) {
         printkf_error("task_create_user(): failed to allocate task\n");
         return NULL;
     }
 
     task->stack = malloc(8192);
-    if(task->stack == NULL) {
+    if (task->stack == NULL) {
         printkf_error("task_create_user(): failed to allocate kernel stack\n");
         free(task);
         return NULL;
@@ -128,7 +129,7 @@ task_t* task_create_user(void (*entry_point)(), uint64_t stack_size) {
     task->stack_size = 8192;
 
     task->page_table = page_table_create_user();
-    if(task->page_table == NULL) {
+    if (task->page_table == NULL) {
         printkf_error("task_create_user(): failed to create page table\n");
         free(task->stack);
         free(task);
@@ -137,7 +138,7 @@ task_t* task_create_user(void (*entry_point)(), uint64_t stack_size) {
 
     task->user_stack_size = 0x1000;
     task->user_stack = pfallocator_request_page();
-    if(task->user_stack == NULL) {
+    if (task->user_stack == NULL) {
         printkf_error("task_create_user(): failed to allocate user stack\n");
         free(task->stack);
         free(task);
@@ -149,7 +150,8 @@ task_t* task_create_user(void (*entry_point)(), uint64_t stack_size) {
 
     uint64_t hhdm_offset = page_get_offset();
     void* phys_addr = (void*)((uint64_t)task->user_stack - hhdm_offset);
-    page_map_memory_to(task->page_table, (void*)task->user_stack_virt, phys_addr);
+    page_map_memory_to(task->page_table, (void*)task->user_stack_virt,
+                       phys_addr);
 
     task->pid = next_pid++;
     task->parent_pid = 0;
@@ -213,7 +215,7 @@ task_t* task_create_elf(const char* path, uint64_t stack_size) {
     }
     free(elf_data);
 
-    task->entry_point = (void(*)())entry;
+    task->entry_point = (void (*)())entry;
 
     return task;
 }
@@ -274,7 +276,8 @@ task_t* task_fork() {
     }
     memcpy(child->user_stack, parent->user_stack, 0x1000);
     void* phys_addr = (void*)((uint64_t)child->user_stack - hhdm_offset);
-    page_map_memory_to(child->page_table, (void*)child->user_stack_virt, phys_addr);
+    page_map_memory_to(child->page_table, (void*)child->user_stack_virt,
+                       phys_addr);
 
     child->pid = next_pid++;
     child->parent_pid = parent->pid;
@@ -363,18 +366,16 @@ int task_waitpid(uint32_t pid) {
     return exit_code;
 }
 
-task_t* task_current() {
-    return current_task;
-}
+task_t* task_current() { return current_task; }
 
 void task_switch(task_t* next) {
-    if(next == NULL || next == current_task) {
+    if (next == NULL || next == current_task) {
         return;
     }
 
     task_t* old_task = current_task;
 
-    if(old_task != NULL && old_task->state == TASK_RUNNING) {
+    if (old_task != NULL && old_task->state == TASK_RUNNING) {
         old_task->state = TASK_READY;
     }
 
@@ -392,21 +393,19 @@ void task_switch(task_t* next) {
     extern uint64_t current_kernel_stack;
     current_kernel_stack = kernel_stack_top;
 
-    if(old_task != NULL) {
+    if (old_task != NULL) {
         task_switch_impl(&old_task->context, next->context);
     } else {
         task_switch_impl(NULL, next->context);
     }
 }
 
-void task_yield() {
-    scheduler_schedule();
-}
+void task_yield() { scheduler_schedule(); }
 
 void task_block() {
     uint64_t flags = spin_lock(&task_lock);
 
-    if(current_task != NULL) {
+    if (current_task != NULL) {
         current_task->state = TASK_BLOCKED;
     }
 
@@ -416,11 +415,11 @@ void task_block() {
 }
 
 void task_unblock(task_t* task) {
-    if(task == NULL) return;
+    if (task == NULL) return;
 
     uint64_t flags = spin_lock(&task_lock);
 
-    if(task->state == TASK_BLOCKED) {
+    if (task->state == TASK_BLOCKED) {
         task->state = TASK_READY;
         task->wake_tick = 0;
     }
@@ -429,11 +428,11 @@ void task_unblock(task_t* task) {
 }
 
 void sleep_ms(uint64_t ms) {
-    if(ms == 0) return;
-    if(current_task == NULL) return;
+    if (ms == 0) return;
+    if (current_task == NULL) return;
 
     uint64_t ticks_to_sleep = (ms + 9) / 10;
-    if(ticks_to_sleep == 0) ticks_to_sleep = 1;
+    if (ticks_to_sleep == 0) ticks_to_sleep = 1;
 
     __asm__ volatile("cli");
 
@@ -447,7 +446,7 @@ void sleep_ms(uint64_t ms) {
 void task_exit(int code) {
     task_t* current = task_current();
 
-    if(current != NULL) {
+    if (current != NULL) {
         current->state = TASK_TERMINATED;
         current->exit_code = code;
     }
@@ -458,7 +457,7 @@ void task_exit(int code) {
 
     printkf_error("task_exit(): SHOULD NEVER REACH HERE\n");
 
-    while(1) {
+    while (1) {
         __asm__ volatile("cli; hlt");
     }
 }

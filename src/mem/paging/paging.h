@@ -1,9 +1,8 @@
 #pragma once
 
 #include <stdbool.h>
-#include <stdint.h>
 #include <stddef.h>
-
+#include <stdint.h>
 
 typedef enum {
     PAGE_PRESENT = 0,
@@ -23,14 +22,16 @@ typedef struct {
 
 typedef struct {
     page_direntry_t entries[512];
-} __attribute__((aligned(0x1000))) page_table_t ;
+} __attribute__((aligned(0x1000))) page_table_t;
 
-void page_direntry_set_flag(page_direntry_t* entry, page_direntry_flag_t flag, bool enabled);
+void page_direntry_set_flag(page_direntry_t* entry, page_direntry_flag_t flag,
+                            bool enabled);
 bool page_direntry_get_flag(page_direntry_t* entry, page_direntry_flag_t flag);
 void page_direntry_set_address(page_direntry_t* entry, uint64_t address);
 uint64_t page_direntry_get_address(page_direntry_t* entry);
 
-void page_table_init(uint64_t offset, uint64_t kernel_start, uint64_t kernel_end);
+void page_table_init(uint64_t offset, uint64_t kernel_start,
+                     uint64_t kernel_end);
 page_table_t* page_table_create_user();
 page_table_t* page_table_clone_for_user();
 void page_table_destroy_user(page_table_t* pml4);

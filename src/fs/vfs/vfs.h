@@ -1,8 +1,8 @@
 #pragma once
 
-#include <stdint.h>
-#include <stddef.h>
 #include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 
 typedef struct vfs_node vfs_node_t;
 typedef struct vfs_ops vfs_ops_t;
@@ -12,19 +12,19 @@ typedef enum {
     VFS_DIRECTORY,
 } vfs_node_type_t;
 
-#define O_RDONLY    0x0000
-#define O_WRONLY    0x0001
-#define O_RDWR      0x0002
-#define O_CREAT     0x0040
-#define O_TRUNC     0x0200
-#define O_APPEND    0x0400
+#define O_RDONLY 0x0000
+#define O_WRONLY 0x0001
+#define O_RDWR 0x0002
+#define O_CREAT 0x0040
+#define O_TRUNC 0x0200
+#define O_APPEND 0x0400
 
-#define SEEK_SET    0
-#define SEEK_CUR    1
-#define SEEK_END    2
+#define SEEK_SET 0
+#define SEEK_CUR 1
+#define SEEK_END 2
 
-#define VFS_MAX_NAME    256
-#define VFS_MAX_PATH    4096
+#define VFS_MAX_NAME 256
+#define VFS_MAX_PATH 4096
 
 struct vfs_node {
     char name[VFS_MAX_NAME];
@@ -42,8 +42,10 @@ struct vfs_node {
 
 struct vfs_ops {
     int64_t (*read)(vfs_node_t* node, void* buf, size_t size, size_t offset);
-    int64_t (*write)(vfs_node_t* node, const void* buf, size_t size, size_t offset);
-    vfs_node_t* (*create)(vfs_node_t* parent, const char* name, vfs_node_type_t type);
+    int64_t (*write)(vfs_node_t* node, const void* buf, size_t size,
+                     size_t offset);
+    vfs_node_t* (*create)(vfs_node_t* parent, const char* name,
+                          vfs_node_type_t type);
     int (*unlink)(vfs_node_t* node);
     int (*truncate)(vfs_node_t* node, size_t size);
 };

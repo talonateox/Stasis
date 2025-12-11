@@ -1,17 +1,20 @@
 #include "tmpfs.h"
 
-#include "../../std/string.h"
-#include "../../mem/alloc/heap.h"
 #include "../../io/terminal.h"
+#include "../../mem/alloc/heap.h"
+#include "../../std/string.h"
 
 typedef struct {
     void* data;
     size_t capacity;
 } tmpfs_file_t;
 
-static int64_t tmpfs_read(vfs_node_t* node, void* buf, size_t size, size_t offset);
-static int64_t tmpfs_write(vfs_node_t* node, const void* buf, size_t size, size_t offset);
-static vfs_node_t* tmpfs_create(vfs_node_t* parent, const char* name, vfs_node_type_t type);
+static int64_t tmpfs_read(vfs_node_t* node, void* buf, size_t size,
+                          size_t offset);
+static int64_t tmpfs_write(vfs_node_t* node, const void* buf, size_t size,
+                           size_t offset);
+static vfs_node_t* tmpfs_create(vfs_node_t* parent, const char* name,
+                                vfs_node_type_t type);
 static int tmpfs_delete(vfs_node_t* node);
 static int tmpfs_truncate(vfs_node_t* node, size_t size);
 
@@ -29,7 +32,8 @@ void tmpfs_init() {
     printkf_ok("tmpfs mounted at /\n");
 }
 
-static int64_t tmpfs_read(vfs_node_t* node, void* buf, size_t size, size_t offset) {
+static int64_t tmpfs_read(vfs_node_t* node, void* buf, size_t size,
+                          size_t offset) {
     if (node->type != VFS_FILE) return -1;
 
     tmpfs_file_t* file = (tmpfs_file_t*)node->data;
@@ -44,7 +48,8 @@ static int64_t tmpfs_read(vfs_node_t* node, void* buf, size_t size, size_t offse
     return size;
 }
 
-static int64_t tmpfs_write(vfs_node_t* node, const void* buf, size_t size, size_t offset) {
+static int64_t tmpfs_write(vfs_node_t* node, const void* buf, size_t size,
+                           size_t offset) {
     if (node->type != VFS_FILE) return -1;
 
     tmpfs_file_t* file = (tmpfs_file_t*)node->data;
@@ -70,7 +75,8 @@ static int64_t tmpfs_write(vfs_node_t* node, const void* buf, size_t size, size_
         }
 
         if (new_capacity > node->size) {
-            memset((uint8_t*)new_data + node->size, 0, new_capacity - node->size);
+            memset((uint8_t*)new_data + node->size, 0,
+                   new_capacity - node->size);
         }
 
         file->data = new_data;
@@ -86,7 +92,8 @@ static int64_t tmpfs_write(vfs_node_t* node, const void* buf, size_t size, size_
     return size;
 }
 
-static vfs_node_t* tmpfs_create(vfs_node_t* parent, const char* name, vfs_node_type_t type) {
+static vfs_node_t* tmpfs_create(vfs_node_t* parent, const char* name,
+                                vfs_node_type_t type) {
     vfs_node_t* node = (vfs_node_t*)malloc(sizeof(vfs_node_t));
     if (node == NULL) return NULL;
 
@@ -147,7 +154,8 @@ static int tmpfs_truncate(vfs_node_t* node, size_t size) {
                 free(file->data);
             }
 
-            memset((uint8_t*)new_data + node->size, 0, new_capacity - node->size);
+            memset((uint8_t*)new_data + node->size, 0,
+                   new_capacity - node->size);
             file->data = new_data;
             file->capacity = new_capacity;
         }

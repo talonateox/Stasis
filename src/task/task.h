@@ -1,7 +1,8 @@
 #pragma once
 
-#include <stdint.h>
 #include <stdbool.h>
+#include <stdint.h>
+
 #include "../mem/paging/paging.h"
 
 typedef enum {

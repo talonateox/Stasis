@@ -1,7 +1,7 @@
 #pragma once
 
-#include <stddef.h>
 #include <stdbool.h>
+#include <stddef.h>
 
 typedef struct heap_segment_hdr {
     size_t length;

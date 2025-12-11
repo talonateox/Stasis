@@ -1,17 +1,17 @@
 #include "interrupts.h"
 
-#include "../io/io.h"
-#include "../drivers/pic/pic.h"
-#include "../io/terminal.h"
-#include "../drivers/timer/pit.h"
-#include "../mem/alloc/page_frame_alloc.h"
 #include "../drivers/keyboard/keyboard.h"
+#include "../drivers/pic/pic.h"
+#include "../drivers/timer/pit.h"
+#include "../io/io.h"
+#include "../io/terminal.h"
+#include "../mem/alloc/page_frame_alloc.h"
 #include "../mem/paging/paging.h"
-#include "../task/task.h"
 #include "../task/scheduler.h"
+#include "../task/task.h"
 
-__attribute__((interrupt))
-void page_fault_handler(struct interrupt_frame* frame, uint64_t error_code) {
+__attribute__((interrupt)) void page_fault_handler(
+    struct interrupt_frame* frame, uint64_t error_code) {
     uint64_t fault_addr;
     __asm__ volatile("mov %%cr2, %0" : "=r"(fault_addr));
 
@@ -34,18 +34,17 @@ void page_fault_handler(struct interrupt_frame* frame, uint64_t error_code) {
     panic_with_frame(frame, error_code, "PAGE FAULT");
 }
 
-__attribute__((interrupt))
-void double_fault_handler(struct interrupt_frame* frame, uint64_t error_code) {
+__attribute__((interrupt)) void double_fault_handler(
+    struct interrupt_frame* frame, uint64_t error_code) {
     panic_with_frame(frame, error_code, "DOUBLE FAULT");
 }
 
-__attribute__((interrupt))
-void gp_fault_handler(struct interrupt_frame* frame, uint64_t error_code) {
+__attribute__((interrupt)) void gp_fault_handler(struct interrupt_frame* frame,
+                                                 uint64_t error_code) {
     panic_with_frame(frame, error_code, "GENERAL PROTECTION FAULT");
 }
 
-__attribute__((interrupt))
-void irq0_handler(struct interrupt_frame* frame) {
+__attribute__((interrupt)) void irq0_handler(struct interrupt_frame* frame) {
     (void)frame;
     outb(PIC1_COMMAND, PIC_EOI);
     pit_interrupt_handler();
@@ -53,8 +52,10 @@ void irq0_handler(struct interrupt_frame* frame) {
 
 idtr_t _g_idtr;
 
-void add_idt_entry(uint64_t handler, uint64_t offset, uint8_t type_attr, uint8_t selector) {
-    idt_entry_t* interrupt = (idt_entry_t*)(_g_idtr.offset + offset * sizeof(idt_entry_t));
+void add_idt_entry(uint64_t handler, uint64_t offset, uint8_t type_attr,
+                   uint8_t selector) {
+    idt_entry_t* interrupt =
+        (idt_entry_t*)(_g_idtr.offset + offset * sizeof(idt_entry_t));
     idt_entry_set_offset(interrupt, handler);
     interrupt->type_attr = type_attr;
     interrupt->selector = selector;
@@ -68,7 +69,8 @@ void interrupts_init() {
     printkf_info("Preparing IDT...\n");
 
     add_idt_entry((uint64_t)page_fault_handler, 0x0e, IDT_INTERRUPT_GATE, 0x08);
-    add_idt_entry((uint64_t)double_fault_handler, 0x08, IDT_INTERRUPT_GATE, 0x08);
+    add_idt_entry((uint64_t)double_fault_handler, 0x08, IDT_INTERRUPT_GATE,
+                  0x08);
     add_idt_entry((uint64_t)gp_fault_handler, 0x0d, IDT_INTERRUPT_GATE, 0x08);
 
     add_idt_entry((uint64_t)keyboard_handler, 0x21, IDT_INTERRUPT_GATE, 0x08);

@@ -1,9 +1,9 @@
 #pragma once
 
-#include "../limine.h"
 #include <stddef.h>
 
 #include "../interrupts/interrupts.h"
+#include "../limine.h"
 
 typedef struct {
     size_t x, y;
@@ -32,4 +32,5 @@ void printkf_ok(const char* fmt, ...);
 void printkf_warn(const char* fmt, ...);
 void printkf_error(const char* fmt, ...);
 
-void panic_with_frame(struct interrupt_frame* frame, uint64_t error_code, const char* msg);
+void panic_with_frame(struct interrupt_frame* frame, uint64_t error_code,
+                      const char* msg);

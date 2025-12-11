@@ -1,52 +1,42 @@
 #pragma once
 
-#include <stdint.h>
-#include <stddef.h>
 #include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 
 #include "../syscall/syscall.h"
 
 static inline uint64_t syscall0(uint64_t num) {
     uint64_t ret;
-    __asm__ volatile(
-        "syscall"
-        : "=a"(ret)
-        : "a"(num)
-        : "rcx", "r11", "memory"
-    );
+    __asm__ volatile("syscall" : "=a"(ret) : "a"(num) : "rcx", "r11", "memory");
     return ret;
 }
 
 static inline uint64_t syscall1(uint64_t num, uint64_t arg1) {
     uint64_t ret;
-    __asm__ volatile(
-        "syscall"
-        : "=a"(ret)
-        : "a"(num), "D"(arg1)
-        : "rcx", "r11", "memory"
-    );
+    __asm__ volatile("syscall"
+                     : "=a"(ret)
+                     : "a"(num), "D"(arg1)
+                     : "rcx", "r11", "memory");
     return ret;
 }
 
 static inline uint64_t syscall2(uint64_t num, uint64_t arg1, uint64_t arg2) {
     uint64_t ret;
-    __asm__ volatile(
-        "syscall"
-        : "=a"(ret)
-        : "a"(num), "D"(arg1), "S"(arg2)
-        : "rcx", "r11", "memory"
-    );
+    __asm__ volatile("syscall"
+                     : "=a"(ret)
+                     : "a"(num), "D"(arg1), "S"(arg2)
+                     : "rcx", "r11", "memory");
     return ret;
 }
 
-static inline uint64_t syscall3(uint64_t num, uint64_t arg1, uint64_t arg2, uint64_t arg3) {
+static inline uint64_t syscall3(uint64_t num, uint64_t arg1, uint64_t arg2,
+                                uint64_t arg3) {
     uint64_t ret;
-    __asm__ volatile(
-        "syscall"
-        : "=a"(ret)
-        : "a"(num), "D"(arg1), "S"(arg2), "d"(arg3)
-        : "rcx", "r11", "memory"
-    );
+    __asm__ volatile("syscall"
+                     : "=a"(ret)
+                     : "a"(num), "D"(arg1), "S"(arg2), "d"(arg3)
+                     : "rcx", "r11", "memory");
     return ret;
 }
 
@@ -55,29 +45,19 @@ static inline void exit(int code) {
     __builtin_unreachable();
 }
 
-static inline void yield() {
-    syscall0(SYS_YIELD);
-}
+static inline void yield() { syscall0(SYS_YIELD); }
 
-static inline void sleep(uint64_t ms) {
-    syscall1(SYS_SLEEP, ms);
-}
+static inline void sleep(uint64_t ms) { syscall1(SYS_SLEEP, ms); }
 
-static inline uint64_t getpid() {
-    return syscall0(SYS_GETPID);
-}
+static inline uint64_t getpid() { return syscall0(SYS_GETPID); }
 
 static inline int exec(const char* path) {
     return syscall1(SYS_EXEC, (uint64_t)path);
 }
 
-static inline int fork() {
-    return (int)syscall0(SYS_FORK);
-}
+static inline int fork() { return (int)syscall0(SYS_FORK); }
 
-static inline int waitpid(int pid) {
-    return (int)syscall1(SYS_WAITPID, pid);
-}
+static inline int waitpid(int pid) { return (int)syscall1(SYS_WAITPID, pid); }
 
 static inline int64_t write(int fd, const void* buf, size_t len) {
     return syscall3(SYS_WRITE, fd, (uint64_t)buf, len);
@@ -91,9 +71,7 @@ static inline int open(const char* path, int flags) {
     return syscall2(SYS_OPEN, (uint64_t)path, flags);
 }
 
-static inline int close(int fd) {
-    return syscall1(SYS_CLOSE, fd);
-}
+static inline int close(int fd) { return syscall1(SYS_CLOSE, fd); }
 
 static inline int64_t seek(int fd, int64_t offset, int whence) {
     return syscall3(SYS_SEEK, fd, offset, whence);
@@ -113,7 +91,7 @@ static inline int unlink(const char* path, bool recursive) {
 
 static inline void print(const char* s) {
     uint64_t len = 0;
-    while(s[len]) len++;
+    while (s[len]) len++;
     write(1, s, len);
 }
 

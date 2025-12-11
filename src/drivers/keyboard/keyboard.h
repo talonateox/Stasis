@@ -1,7 +1,8 @@
 #pragma once
 
-#include <stdint.h>
 #include <stdbool.h>
+#include <stdint.h>
+
 #include "../../interrupts/interrupts.h"
 
 void keyboard_init();

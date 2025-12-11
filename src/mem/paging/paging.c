@@ -1,12 +1,12 @@
 #include "paging.h"
 
-#include "page_table_manager.h"
-#include "page_map_indexer.h"
-#include "../memmap.h"
-#include "../alloc/page_frame_alloc.h"
+#include "../../io/terminal.h"
 #include "../../limine.h"
 #include "../../std/string.h"
-#include "../../io/terminal.h"
+#include "../alloc/page_frame_alloc.h"
+#include "../memmap.h"
+#include "page_map_indexer.h"
+#include "page_table_manager.h"
 
 page_table_manager_t _g_page_table_manager = {};
 
@@ -15,22 +15,25 @@ void map_memory_regions(uint64_t offset) {
 
     uint64_t total_pages_mapped = 0;
 
-    for(size_t region = 0; region < memmap_get_entry_count(); region++) {
+    for (size_t region = 0; region < memmap_get_entry_count(); region++) {
         struct limine_memmap_entry* entry = memmap_get_entry(region);
 
         uint64_t base = entry->base & ~0xFFF;
         uint64_t top = (entry->base + entry->length + 0xFFF) & ~0xFFF;
         uint64_t pages = (top - base) / PAGE_SIZE;
 
-        for(uint64_t i = 0; i < pages; i++) {
+        for (uint64_t i = 0; i < pages; i++) {
             uint64_t addr = base + (i * PAGE_SIZE);
 
-            if(!page_table_map(&_g_page_table_manager, (void*)addr, (void*)addr)) {
+            if (!page_table_map(&_g_page_table_manager, (void*)addr,
+                                (void*)addr)) {
                 panic("[MMU] Failed to map %k%p%r\n", 0xcccc66, (void*)addr);
             }
 
-            if(!page_table_map(&_g_page_table_manager, (void*)(addr + offset), (void*)addr)) {
-                panic("[MMU] Failed to map HHDM %k%p%r\n", 0xcccc66, (void*)(addr + offset));
+            if (!page_table_map(&_g_page_table_manager, (void*)(addr + offset),
+                                (void*)addr)) {
+                panic("[MMU] Failed to map HHDM %k%p%r\n", 0xcccc66,
+                      (void*)(addr + offset));
             }
 
             total_pages_mapped += 2;
@@ -46,24 +49,26 @@ void map_kernel(uint64_t kernel_start, uint64_t kernel_end) {
     uint64_t kernel_virt_end = kernel_end;
     uint64_t kernel_phys_base = 0;
 
-    for(size_t i = 0; i < memmap_get_entry_count(); i++) {
+    for (size_t i = 0; i < memmap_get_entry_count(); i++) {
         struct limine_memmap_entry* entry = memmap_get_entry(i);
-        if(entry->type == LIMINE_MEMMAP_EXECUTABLE_AND_MODULES) {
+        if (entry->type == LIMINE_MEMMAP_EXECUTABLE_AND_MODULES) {
             kernel_phys_base = entry->base;
             break;
         }
     }
 
-    uint64_t kernel_pages = ((kernel_virt_end - kernel_virt_start) + PAGE_SIZE - 1) / PAGE_SIZE;
-    for(uint64_t i = 0; i < kernel_pages; i++) {
+    uint64_t kernel_pages =
+        ((kernel_virt_end - kernel_virt_start) + PAGE_SIZE - 1) / PAGE_SIZE;
+    for (uint64_t i = 0; i < kernel_pages; i++) {
         page_table_map(&_g_page_table_manager,
-                      (void*)(kernel_virt_start + i * PAGE_SIZE),
-                      (void*)(kernel_phys_base + i * PAGE_SIZE));
+                       (void*)(kernel_virt_start + i * PAGE_SIZE),
+                       (void*)(kernel_phys_base + i * PAGE_SIZE));
     }
     printkf_ok("Kernel mapped %k%llu%r pages\n", 0xcccc66, kernel_pages);
 }
 
-void page_table_init(uint64_t offset, uint64_t kernel_start, uint64_t kernel_end) {
+void page_table_init(uint64_t offset, uint64_t kernel_start,
+                     uint64_t kernel_end) {
     page_table_t* pml4 = (page_table_t*)pfallocator_request_page();
     memset(pml4, 0, 0x1000);
 
@@ -73,11 +78,11 @@ void page_table_init(uint64_t offset, uint64_t kernel_start, uint64_t kernel_end
     map_kernel(kernel_start, kernel_end);
 
     uint64_t pml4_phys = (uint64_t)pml4 - offset;
-    __asm__ volatile("mov %0, %%cr3" : : "r" (pml4_phys) : "memory");
+    __asm__ volatile("mov %0, %%cr3" : : "r"(pml4_phys) : "memory");
 }
 
 void page_map_memory(void* virt, void* phys) {
-    page_table_map(&_g_page_table_manager,  virt, phys);
+    page_table_map(&_g_page_table_manager, virt, phys);
 }
 
 void page_map_memory_to(page_table_t* pml4, void* virt, void* phys) {
@@ -85,10 +90,11 @@ void page_map_memory_to(page_table_t* pml4, void* virt, void* phys) {
     page_table_map(&temp, virt, phys);
 }
 
-void page_direntry_set_flag(page_direntry_t* entry, page_direntry_flag_t flag, bool enabled) {
+void page_direntry_set_flag(page_direntry_t* entry, page_direntry_flag_t flag,
+                            bool enabled) {
     uint64_t bit = (uint64_t)1 << flag;
     entry->value &= ~bit;
-    if(enabled) entry->value |= bit;
+    if (enabled) entry->value |= bit;
 }
 
 bool page_direntry_get_flag(page_direntry_t* entry, page_direntry_flag_t flag) {
@@ -106,9 +112,7 @@ uint64_t page_direntry_get_address(page_direntry_t* entry) {
     return (entry->value & 0x000ffffffffff000) >> 12;
 }
 
-size_t page_get_offset() {
-    return _g_page_table_manager.offset;
-}
+size_t page_get_offset() { return _g_page_table_manager.offset; }
 
 static page_table_t* deep_copy_page_table(page_table_t* src, int level) {
     uint64_t offset = _g_page_table_manager.offset;
@@ -124,19 +128,23 @@ static page_table_t* deep_copy_page_table(page_table_t* src, int level) {
 
         if (level == 1) {
             if (page_direntry_get_flag(&src->entries[i], PAGE_READ_WRITE)) {
-                page_direntry_set_flag(&src->entries[i], PAGE_READ_WRITE, false);
+                page_direntry_set_flag(&src->entries[i], PAGE_READ_WRITE,
+                                       false);
                 page_direntry_set_flag(&src->entries[i], PAGE_COW, true);
             }
             dst->entries[i] = src->entries[i];
 
-            uint64_t page_phys = page_direntry_get_address(&src->entries[i]) << 12;
+            uint64_t page_phys = page_direntry_get_address(&src->entries[i])
+                                 << 12;
             void* page = (void*)(page_phys + offset);
             pfallocator_ref_page(page);
         } else {
-            uint64_t child_phys = page_direntry_get_address(&src->entries[i]) << 12;
+            uint64_t child_phys = page_direntry_get_address(&src->entries[i])
+                                  << 12;
             page_table_t* child_src = (page_table_t*)(child_phys + offset);
 
-            page_table_t* child_dst = deep_copy_page_table(child_src, level - 1);
+            page_table_t* child_dst =
+                deep_copy_page_table(child_src, level - 1);
             if (child_dst == NULL) {
                 return NULL;
             }
@@ -158,7 +166,8 @@ page_table_t* page_table_clone_for_user() {
 
     uint64_t cr3;
     __asm__ volatile("mov %%cr3, %0" : "=r"(cr3));
-    page_table_t* current_pml4 = (page_table_t*)(cr3 + _g_page_table_manager.offset);
+    page_table_t* current_pml4 =
+        (page_table_t*)(cr3 + _g_page_table_manager.offset);
     uint64_t offset = _g_page_table_manager.offset;
 
     for (int i = 256; i < 512; i++) {
@@ -169,7 +178,8 @@ page_table_t* page_table_clone_for_user() {
         if (!page_direntry_get_flag(&current_pml4->entries[i], PAGE_PRESENT)) {
             continue;
         }
-        uint64_t pdpt_phys = page_direntry_get_address(&current_pml4->entries[i]) << 12;
+        uint64_t pdpt_phys =
+            page_direntry_get_address(&current_pml4->entries[i]) << 12;
         page_table_t* pdpt_src = (page_table_t*)(pdpt_phys + offset);
 
         page_table_t* pdpt_dst = deep_copy_page_table(pdpt_src, 3);
@@ -202,7 +212,8 @@ page_table_t* page_table_create_user() {
     return new_pml4;
 }
 
-static void destroy_page_table_recursive(page_table_t* table, int level, bool free_leaf_pages) {
+static void destroy_page_table_recursive(page_table_t* table, int level,
+                                         bool free_leaf_pages) {
     uint64_t offset = _g_page_table_manager.offset;
 
     for (int i = 0; i < 512; i++) {
@@ -211,11 +222,13 @@ static void destroy_page_table_recursive(page_table_t* table, int level, bool fr
         }
 
         if (level > 1) {
-            uint64_t child_phys = page_direntry_get_address(&table->entries[i]) << 12;
+            uint64_t child_phys = page_direntry_get_address(&table->entries[i])
+                                  << 12;
             page_table_t* child = (page_table_t*)(child_phys + offset);
             destroy_page_table_recursive(child, level - 1, free_leaf_pages);
         } else if (free_leaf_pages) {
-            uint64_t page_phys = page_direntry_get_address(&table->entries[i]) << 12;
+            uint64_t page_phys = page_direntry_get_address(&table->entries[i])
+                                 << 12;
             void* page = (void*)(page_phys + offset);
             pfallocator_free_page(page);
         }
@@ -224,7 +237,8 @@ static void destroy_page_table_recursive(page_table_t* table, int level, bool fr
     pfallocator_free_page(table);
 }
 
-static void page_table_destroy_internal(page_table_t* pml4, bool free_leaf_pages) {
+static void page_table_destroy_internal(page_table_t* pml4,
+                                        bool free_leaf_pages) {
     if (pml4 == NULL) return;
     if (pml4 == _g_page_table_manager.pml4) return;
 
@@ -234,7 +248,8 @@ static void page_table_destroy_internal(page_table_t* pml4, bool free_leaf_pages
         }
 
         uint64_t pdpt_phys = page_direntry_get_address(&pml4->entries[i]) << 12;
-        page_table_t* pdpt = (page_table_t*)(pdpt_phys + _g_page_table_manager.offset);
+        page_table_t* pdpt =
+            (page_table_t*)(pdpt_phys + _g_page_table_manager.offset);
         destroy_page_table_recursive(pdpt, 3, free_leaf_pages);
     }
 
@@ -245,9 +260,7 @@ void page_table_destroy_user(page_table_t* pml4) {
     page_table_destroy_internal(pml4, true);
 }
 
-page_table_t* page_get_pml4() {
-    return _g_page_table_manager.pml4;
-}
+page_table_t* page_get_pml4() { return _g_page_table_manager.pml4; }
 
 void* page_table_get_physical(void* virt) {
     return page_table_get_physical_from(_g_page_table_manager.pml4, virt);

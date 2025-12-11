@@ -2,8 +2,7 @@
 
 tss_t _g_tss = {0};
 
-__attribute__((aligned(0x1000)))
-gdt_t _g_gdt = {
+__attribute__((aligned(0x1000))) gdt_t _g_gdt = {
     .null = {0, 0, 0, 0x00, 0x00, 0},
     .kernel_code = {0, 0, 0, 0x9A, 0xA0, 0},
     .kernel_data = {0, 0, 0, 0x92, 0xA0, 0},
@@ -53,6 +52,4 @@ void gdt_init() {
     __asm__ volatile("ltr %w0" : : "r"((uint16_t)0x28));
 }
 
-void tss_set_kernel_stack(uint64_t stack) {
-    _g_tss.rsp0 = stack;
-}
+void tss_set_kernel_stack(uint64_t stack) { _g_tss.rsp0 = stack; }

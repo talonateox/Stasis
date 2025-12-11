@@ -1,19 +1,19 @@
 #include "page_table_manager.h"
 
-#include "../../std/string.h"
-#include "page_map_indexer.h"
-#include "../alloc/page_frame_alloc.h"
-
 #include <stdint.h>
+
+#include "../../std/string.h"
+#include "../alloc/page_frame_alloc.h"
+#include "page_map_indexer.h"
 
 bool page_table_map(page_table_manager_t* manager, void* virt, void* phys) {
     page_map_indexer_t indexer = page_map_indexer_new((uint64_t)virt);
 
     page_direntry_t pde = manager->pml4->entries[indexer.pdp];
     page_table_t* pdp;
-    if(!page_direntry_get_flag(&pde, PAGE_PRESENT)) {
+    if (!page_direntry_get_flag(&pde, PAGE_PRESENT)) {
         pdp = (page_table_t*)pfallocator_request_page();
-        if(pdp == NULL) return false;
+        if (pdp == NULL) return false;
         memset(pdp, 0, PAGE_SIZE);
 
         uint64_t pdp_phys = (uint64_t)pdp - manager->offset;
@@ -29,9 +29,9 @@ bool page_table_map(page_table_manager_t* manager, void* virt, void* phys) {
 
     pde = pdp->entries[indexer.pd];
     page_table_t* pd;
-    if(!page_direntry_get_flag(&pde, PAGE_PRESENT)) {
+    if (!page_direntry_get_flag(&pde, PAGE_PRESENT)) {
         pd = (page_table_t*)pfallocator_request_page();
-        if(pd == NULL) return false;
+        if (pd == NULL) return false;
         memset(pd, 0, PAGE_SIZE);
 
         uint64_t pd_phys = (uint64_t)pd - manager->offset;
@@ -47,9 +47,9 @@ bool page_table_map(page_table_manager_t* manager, void* virt, void* phys) {
 
     pde = pd->entries[indexer.pt];
     page_table_t* pt;
-    if(!page_direntry_get_flag(&pde, PAGE_PRESENT)) {
+    if (!page_direntry_get_flag(&pde, PAGE_PRESENT)) {
         pt = (page_table_t*)pfallocator_request_page();
-        if(pt == NULL) return false;
+        if (pt == NULL) return false;
         memset(pt, 0, PAGE_SIZE);
 
         uint64_t pt_phys = (uint64_t)pt - manager->offset;

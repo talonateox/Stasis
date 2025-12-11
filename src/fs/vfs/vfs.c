@@ -1,8 +1,8 @@
 #include "vfs.h"
 
+#include "../../io/terminal.h"
 #include "../../mem/alloc/heap.h"
 #include "../../std/string.h"
-#include "../../io/terminal.h"
 
 static vfs_node_t* root_node = NULL;
 
@@ -11,7 +11,7 @@ static file_descriptor_t fd_table[MAX_FDS];
 
 void vfs_init() {
     printkf_info("Initializing VFS...\n");
-    for(int i = 0; i < MAX_FDS; i++) {
+    for (int i = 0; i < MAX_FDS; i++) {
         fd_table[i].in_use = false;
     }
 
@@ -26,13 +26,11 @@ void vfs_init() {
     printkf_ok("VFS Initialized\n");
 }
 
-vfs_node_t* vfs_root() {
-    return root_node;
-}
+vfs_node_t* vfs_root() { return root_node; }
 
 static int alloc_fd() {
-    for(int i = 3; i < MAX_FDS; i++) {
-        if(!fd_table[i].in_use) {
+    for (int i = 3; i < MAX_FDS; i++) {
+        if (!fd_table[i].in_use) {
             fd_table[i].in_use = true;
             return i;
         }
@@ -42,17 +40,17 @@ static int alloc_fd() {
 }
 
 static file_descriptor_t* get_fd(int fd) {
-    if(fd < 0 || fd >= MAX_FDS) return NULL;
-    if(!fd_table[fd].in_use) return NULL;
+    if (fd < 0 || fd >= MAX_FDS) return NULL;
+    if (!fd_table[fd].in_use) return NULL;
     return &fd_table[fd];
 }
 
 static vfs_node_t* find_child(vfs_node_t* dir, const char* name) {
-    if(dir->type != VFS_DIRECTORY) return NULL;
+    if (dir->type != VFS_DIRECTORY) return NULL;
 
     vfs_node_t* child = dir->children;
-    while(child != NULL) {
-        if(strcmp(child->name, name) == 0) {
+    while (child != NULL) {
+        if (strcmp(child->name, name) == 0) {
             return child;
         }
         child = child->next;
@@ -168,24 +166,24 @@ int vfs_unlink(const char* path, bool recursive) {
     if (node == NULL) return -1;
     if (node == root_node) return -1;
 
-    if(node->type == VFS_DIRECTORY) {
-        if(node->children != NULL) {
-            if(!recursive) return -1;
+    if (node->type == VFS_DIRECTORY) {
+        if (node->children != NULL) {
+            if (!recursive) return -1;
 
             vfs_node_t* child = node->children;
-            if(child != NULL) {
+            if (child != NULL) {
                 vfs_node_t* next = child->next;
 
                 char child_path[VFS_MAX_PATH];
                 size_t path_len = strlen(path);
                 size_t name_len = strlen(child->name);
 
-                if(path_len + 1 + name_len + 1 > VFS_MAX_PATH) {
+                if (path_len + 1 + name_len + 1 > VFS_MAX_PATH) {
                     return -1;
                 }
 
                 memcpy(child_path, path, path_len);
-                if(path_len > 0 && path[path_len - 1] != '/') {
+                if (path_len > 0 && path[path_len - 1] != '/') {
                     child_path[path_len] = '/';
                     path_len++;
                 }
@@ -193,7 +191,7 @@ int vfs_unlink(const char* path, bool recursive) {
                 child_path[path_len + name_len] = '\0';
 
                 int result = vfs_unlink(child_path, true);
-                if(result < 0) {
+                if (result < 0) {
                     return result;
                 }
                 child = next;
@@ -201,9 +199,9 @@ int vfs_unlink(const char* path, bool recursive) {
         }
     }
 
-    if(node->ops && node->ops->unlink) {
+    if (node->ops && node->ops->unlink) {
         int res = node->ops->unlink(node);
-        if(res < 0) return res;
+        if (res < 0) return res;
     }
 
     remove_child(node->parent, node);

@@ -1,22 +1,22 @@
 #include "syscall.h"
 
-#include "../task/task.h"
-#include "../io/terminal.h"
 #include "../drivers/keyboard/keyboard.h"
-#include "../fs/vfs/vfs.h"
 #include "../elf/elf.h"
-#include "../std/string.h"
+#include "../fs/vfs/vfs.h"
+#include "../io/terminal.h"
 #include "../mem/alloc/heap.h"
-#include "../mem/paging/paging.h"
 #include "../mem/paging/page_table_manager.h"
+#include "../mem/paging/paging.h"
+#include "../std/string.h"
+#include "../task/task.h"
 #include "../usermode/usermode.h"
 
-#define MSR_EFER   0xC0000080
-#define MSR_STAR   0xC0000081
-#define MSR_LSTAR  0xC0000082
+#define MSR_EFER 0xC0000080
+#define MSR_STAR 0xC0000081
+#define MSR_LSTAR 0xC0000082
 #define MSR_SFMASK 0xC0000084
 
-#define EFER_SCE   (1 << 0)
+#define EFER_SCE (1 << 0)
 
 extern void syscall_entry();
 
@@ -106,11 +106,12 @@ static int sys_exec(const char* path) {
 
     page_table_t* old_page_table = current->page_table;
     current->page_table = new_page_table;
-    current->entry_point = (void(*)())entry_point;
+    current->entry_point = (void (*)())entry_point;
 
     uint64_t hhdm_offset = page_get_offset();
     void* phys_page = (void*)((uint64_t)current->user_stack - hhdm_offset);
-    page_map_memory_to(new_page_table, (void*)current->user_stack_virt, phys_page);
+    page_map_memory_to(new_page_table, (void*)current->user_stack_virt,
+                       phys_page);
     memset(current->user_stack, 0, 0x1000);
 
     uint64_t new_cr3_phys = (uint64_t)new_page_table - hhdm_offset;
@@ -126,8 +127,9 @@ static int sys_exec(const char* path) {
     return 0;
 }
 
-uint64_t syscall_handler(uint64_t syscall, uint64_t arg1, uint64_t arg2, uint64_t arg3) {
-    switch(syscall) {
+uint64_t syscall_handler(uint64_t syscall, uint64_t arg1, uint64_t arg2,
+                         uint64_t arg3) {
+    switch (syscall) {
         case SYS_EXIT: {
             task_exit(arg1);
             return 0;
@@ -220,7 +222,8 @@ uint64_t syscall_handler(uint64_t syscall, uint64_t arg1, uint64_t arg2, uint64_
             return vfs_unlink(path, recursive);
         }
         default: {
-            printkf_error("syscall_handler(): unknown syscall: %llu\n", syscall);
+            printkf_error("syscall_handler(): unknown syscall: %llu\n",
+                          syscall);
             return -1;
         }
     }

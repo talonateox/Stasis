@@ -1,13 +1,12 @@
 #include "spinlock.h"
 
-static inline uint32_t atomic_exchange(volatile uint32_t* target, uint32_t new) {
+static inline uint32_t atomic_exchange(volatile uint32_t* target,
+                                       uint32_t new) {
     uint32_t old;
-    __asm__ volatile(
-        "lock xchg %0, %1"
-        : "=r"(old), "+m"(*target)
-        : "0"(new)
-        : "memory"
-    );
+    __asm__ volatile("lock xchg %0, %1"
+                     : "=r"(old), "+m"(*target)
+                     : "0"(new)
+                     : "memory");
     return old;
 }
 
@@ -18,8 +17,7 @@ static inline uint64_t read_rflags() {
         "pop %0"
         : "=r"(flags)
         :
-        : "memory"
-    );
+        : "memory");
     return flags;
 }
 
@@ -29,24 +27,19 @@ static inline void write_rflags(uint64_t flags) {
         "popfq"
         :
         : "r"(flags)
-        : "memory", "cc"
-    );
+        : "memory", "cc");
 }
 
-static inline void cli_no_reorder() {
-    __asm__ volatile("cli" ::: "memory");
-}
+static inline void cli_no_reorder() { __asm__ volatile("cli" ::: "memory"); }
 
-static inline void cpu_pause() {
-    __asm__ volatile("pause");
-}
+static inline void cpu_pause() { __asm__ volatile("pause"); }
 
 uint64_t spin_lock(spinlock_t* lock) {
     uint64_t flags = read_rflags();
 
     cli_no_reorder();
 
-    while(atomic_exchange(&lock->locked, 1) == 1) {
+    while (atomic_exchange(&lock->locked, 1) == 1) {
         cpu_pause();
     }
 
@@ -63,10 +56,10 @@ uint64_t spin_trylock(spinlock_t* lock, int* acquired) {
     uint64_t flags = read_rflags();
     cli_no_reorder();
 
-    if(atomic_exchange(&lock->locked, 1) == 0) {
+    if (atomic_exchange(&lock->locked, 1) == 0) {
         *acquired = 1;
         return flags;
-    } else  {
+    } else {
         write_rflags(flags);
         *acquired = 0;
         return 0;

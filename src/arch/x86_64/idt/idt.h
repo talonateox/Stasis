@@ -2,9 +2,9 @@
 
 #include <stdint.h>
 
-#define IDT_TRAP_GATE       0b10001111
-#define IDT_INTERRUPT_GATE  0b10001110
-#define IDT_CALL_GATE       0b10001100
+#define IDT_TRAP_GATE 0b10001111
+#define IDT_INTERRUPT_GATE 0b10001110
+#define IDT_CALL_GATE 0b10001100
 
 typedef struct {
     uint16_t offset0;
