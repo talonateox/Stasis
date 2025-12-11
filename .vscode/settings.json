@@ -12,5 +12,5 @@
         "stdint-gcc.h": "c",
         "memmap.h": "c",
         "bitmap.h": "c"
-    }
+    },
 }

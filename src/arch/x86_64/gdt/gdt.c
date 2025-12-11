@@ -1,5 +1,4 @@
 #include "gdt.h"
-#include "gdt.h"
 
 tss_t _g_tss = {0};
 
@@ -51,7 +50,7 @@ void gdt_init() {
     desc.offset = (uint64_t)&_g_gdt;
     load_gdt(&desc);
 
-    asm volatile("ltr %w0" : : "r"((uint16_t)0x28));
+    __asm__ volatile("ltr %w0" : : "r"((uint16_t)0x28));
 }
 
 void tss_set_kernel_stack(uint64_t stack) {

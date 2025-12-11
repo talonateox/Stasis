@@ -13,7 +13,7 @@
 __attribute__((interrupt))
 void page_fault_handler(struct interrupt_frame* frame, uint64_t error_code) {
     uint64_t fault_addr;
-    asm volatile("mov %%cr2, %0" : "=r"(fault_addr));
+    __asm__ volatile("mov %%cr2, %0" : "=r"(fault_addr));
 
     if ((error_code & 0x7) == 0x7) {
         if (page_handle_cow_fault((void*)fault_addr)) {
@@ -76,6 +76,6 @@ void interrupts_init() {
     add_idt_entry((uint64_t)irq0_handler, 0x20, IDT_INTERRUPT_GATE, 0x08);
 
     printkf_info("Loading IDT...\n");
-    asm("lidt %0" : : "m"(_g_idtr));
+    __asm__("lidt %0" : : "m"(_g_idtr));
     printkf_info("IDT Loaded\n");
 }

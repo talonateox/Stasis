@@ -23,12 +23,12 @@ extern void syscall_entry();
 static inline void wrmsr(uint32_t msr, uint64_t value) {
     uint32_t low = value & 0xffffffff;
     uint32_t high = value >> 32;
-    asm volatile("wrmsr" : : "c"(msr), "a"(low), "d"(high));
+    __asm__ volatile("wrmsr" : : "c"(msr), "a"(low), "d"(high));
 }
 
 static inline uint64_t rdmsr(uint32_t msr) {
     uint32_t low, high;
-    asm volatile("rdmsr" : "=a"(low), "=d"(high) : "c"(msr));
+    __asm__ volatile("rdmsr" : "=a"(low), "=d"(high) : "c"(msr));
     return ((uint64_t)high << 32) | low;
 }
 
@@ -114,7 +114,7 @@ static int sys_exec(const char* path) {
     memset(current->user_stack, 0, 0x1000);
 
     uint64_t new_cr3_phys = (uint64_t)new_page_table - hhdm_offset;
-    asm volatile("mov %0, %%cr3" : : "r"(new_cr3_phys) : "memory");
+    __asm__ volatile("mov %0, %%cr3" : : "r"(new_cr3_phys) : "memory");
 
     page_table_destroy_user(old_page_table);
 

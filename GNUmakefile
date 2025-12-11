@@ -41,7 +41,7 @@ endif
 override CFLAGS += \
     -Wall \
     -Wextra \
-    -std=gnu11 \
+    -std=gnu23 \
     -ffreestanding \
     -fno-stack-protector \
     -fno-stack-check \
@@ -132,5 +132,5 @@ bin/$(OUTPUT).iso: bin/$(OUTPUT)
 	./limine/limine bios-install bin/$(OUTPUT).iso
 
 .PHONY: run
-run: bin/$(OUTPUT).iso
-	qemu-system-x86_64 -cdrom bin/$(OUTPUT).iso -m 512M -cpu host -enable-kvm -machine q35 -net none
+run:
+	qemu-system-x86_64 -cdrom bin/$(OUTPUT).iso -m 1024M -machine q35 -net none

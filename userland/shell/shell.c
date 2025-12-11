@@ -97,7 +97,7 @@ static void cmd_exec(const char* args) {
     int pid = fork();
 
     if (pid == 0) {
-        exec(path, argv);
+        exec(path);
         print("exec: failed to execute '");
         print(path);
         print("'\n");

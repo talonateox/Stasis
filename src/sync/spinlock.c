@@ -2,7 +2,7 @@
 
 static inline uint32_t atomic_exchange(volatile uint32_t* target, uint32_t new) {
     uint32_t old;
-    asm volatile(
+    __asm__ volatile(
         "lock xchg %0, %1"
         : "=r"(old), "+m"(*target)
         : "0"(new)
@@ -13,7 +13,7 @@ static inline uint32_t atomic_exchange(volatile uint32_t* target, uint32_t new) 
 
 static inline uint64_t read_rflags() {
     uint64_t flags;
-    asm volatile(
+    __asm__ volatile(
         "pushfq\n\t"
         "pop %0"
         : "=r"(flags)
@@ -24,7 +24,7 @@ static inline uint64_t read_rflags() {
 }
 
 static inline void write_rflags(uint64_t flags) {
-    asm volatile(
+    __asm__ volatile(
         "push %0\n\t"
         "popfq"
         :
@@ -34,11 +34,11 @@ static inline void write_rflags(uint64_t flags) {
 }
 
 static inline void cli_no_reorder() {
-    asm volatile("cli" ::: "memory");
+    __asm__ volatile("cli" ::: "memory");
 }
 
 static inline void cpu_pause() {
-    asm volatile("pause");
+    __asm__ volatile("pause");
 }
 
 uint64_t spin_lock(spinlock_t* lock) {
@@ -54,7 +54,7 @@ uint64_t spin_lock(spinlock_t* lock) {
 }
 
 void spin_unlock(spinlock_t* lock, uint64_t flags) {
-    asm volatile("" ::: "memory");
+    __asm__ volatile("" ::: "memory");
     lock->locked = 0;
     write_rflags(flags);
 }

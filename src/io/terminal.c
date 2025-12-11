@@ -332,7 +332,7 @@ void panic(const char* fmt, ...) {
     va_end(args);
 
     for(;;) {
-        asm("hlt");
+        __asm__("hlt");
     }
 }
 
@@ -383,10 +383,10 @@ void panic_with_frame(struct interrupt_frame* frame, uint64_t error_code, const 
     putks("\n");
 
     uint64_t cr0, cr2, cr3, cr4;
-    asm volatile("mov %%cr0, %0" : "=r"(cr0));
-    asm volatile("mov %%cr2, %0" : "=r"(cr2));
-    asm volatile("mov %%cr3, %0" : "=r"(cr3));
-    asm volatile("mov %%cr4, %0" : "=r"(cr4));
+    __asm__ volatile("mov %%cr0, %0" : "=r"(cr0));
+    __asm__ volatile("mov %%cr2, %0" : "=r"(cr2));
+    __asm__ volatile("mov %%cr3, %0" : "=r"(cr3));
+    __asm__ volatile("mov %%cr4, %0" : "=r"(cr4));
 
     terminal_set_fg(0xffff00);
     putks("CONTROL REGISTERS:\n");
@@ -410,7 +410,7 @@ void panic_with_frame(struct interrupt_frame* frame, uint64_t error_code, const 
     putks("SYSTEM HALTED");
     terminal_set_fg(0xffffff);
 
-    for(;;) asm("hlt");
+    for(;;) __asm__("hlt");
 }
 
 void printkf_info(const char* fmt, ...) {

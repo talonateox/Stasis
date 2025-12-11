@@ -25,7 +25,7 @@ extern void scheduler_schedule();
 extern void task_switch_impl(cpu_state_t** old_context, cpu_state_t* new_context);
 
 static void task_entry_wrapper() {
-    asm volatile("sti");
+    __asm__ volatile("sti");
 
     task_t* self = task_current();
     if(self != NULL && self->entry_point != NULL) {
@@ -384,7 +384,7 @@ void task_switch(task_t* next) {
     uint64_t hhdm_offset = page_get_offset();
     uint64_t new_cr3_phys = (uint64_t)next->page_table - hhdm_offset;
 
-    asm volatile("mov %0, %%cr3" : : "r"(new_cr3_phys) : "memory");
+    __asm__ volatile("mov %0, %%cr3" : : "r"(new_cr3_phys) : "memory");
 
     uint64_t kernel_stack_top = (uint64_t)next->stack + next->stack_size;
     tss_set_kernel_stack(kernel_stack_top);
@@ -435,7 +435,7 @@ void sleep_ms(uint64_t ms) {
     uint64_t ticks_to_sleep = (ms + 9) / 10;
     if(ticks_to_sleep == 0) ticks_to_sleep = 1;
 
-    asm volatile("cli");
+    __asm__ volatile("cli");
 
     uint64_t now = timer_get_ticks();
     current_task->wake_tick = now + ticks_to_sleep;
@@ -459,6 +459,6 @@ void task_exit(int code) {
     printkf_error("task_exit(): SHOULD NEVER REACH HERE\n");
 
     while(1) {
-        asm volatile("cli; hlt");
+        __asm__ volatile("cli; hlt");
     }
 }

@@ -73,7 +73,7 @@ void page_table_init(uint64_t offset, uint64_t kernel_start, uint64_t kernel_end
     map_kernel(kernel_start, kernel_end);
 
     uint64_t pml4_phys = (uint64_t)pml4 - offset;
-    asm volatile("mov %0, %%cr3" : : "r" (pml4_phys) : "memory");
+    __asm__ volatile("mov %0, %%cr3" : : "r" (pml4_phys) : "memory");
 }
 
 void page_map_memory(void* virt, void* phys) {
@@ -157,7 +157,7 @@ page_table_t* page_table_clone_for_user() {
     memset(new_pml4, 0, 0x1000);
 
     uint64_t cr3;
-    asm volatile("mov %%cr3, %0" : "=r"(cr3));
+    __asm__ volatile("mov %%cr3, %0" : "=r"(cr3));
     page_table_t* current_pml4 = (page_table_t*)(cr3 + _g_page_table_manager.offset);
     uint64_t offset = _g_page_table_manager.offset;
 
@@ -182,7 +182,7 @@ page_table_t* page_table_clone_for_user() {
         page_direntry_set_address(&new_pml4->entries[i], pdpt_dst_phys >> 12);
     }
 
-    asm volatile("mov %0, %%cr3" : : "r"(cr3) : "memory");
+    __asm__ volatile("mov %0, %%cr3" : : "r"(cr3) : "memory");
 
     return new_pml4;
 }
@@ -309,7 +309,7 @@ page_direntry_t* page_table_get_pte(page_table_t* pml4, void* virt) {
 
 bool page_handle_cow_fault(void* fault_addr) {
     uint64_t cr3;
-    asm volatile("mov %%cr3, %0" : "=r"(cr3));
+    __asm__ volatile("mov %%cr3, %0" : "=r"(cr3));
     page_table_t* pml4 = (page_table_t*)(cr3 + _g_page_table_manager.offset);
 
     page_direntry_t* pte = page_table_get_pte(pml4, fault_addr);
@@ -339,7 +339,7 @@ bool page_handle_cow_fault(void* fault_addr) {
         page_direntry_set_flag(pte, PAGE_COW, false);
     }
 
-    asm volatile("invlpg (%0)" : : "r"(fault_addr) : "memory");
+    __asm__ volatile("invlpg (%0)" : : "r"(fault_addr) : "memory");
 
     return true;
 }

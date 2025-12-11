@@ -8,7 +8,7 @@
 
 static inline uint64_t syscall0(uint64_t num) {
     uint64_t ret;
-    asm volatile(
+    __asm__ volatile(
         "syscall"
         : "=a"(ret)
         : "a"(num)
@@ -19,7 +19,7 @@ static inline uint64_t syscall0(uint64_t num) {
 
 static inline uint64_t syscall1(uint64_t num, uint64_t arg1) {
     uint64_t ret;
-    asm volatile(
+    __asm__ volatile(
         "syscall"
         : "=a"(ret)
         : "a"(num), "D"(arg1)
@@ -30,7 +30,7 @@ static inline uint64_t syscall1(uint64_t num, uint64_t arg1) {
 
 static inline uint64_t syscall2(uint64_t num, uint64_t arg1, uint64_t arg2) {
     uint64_t ret;
-    asm volatile(
+    __asm__ volatile(
         "syscall"
         : "=a"(ret)
         : "a"(num), "D"(arg1), "S"(arg2)
@@ -41,7 +41,7 @@ static inline uint64_t syscall2(uint64_t num, uint64_t arg1, uint64_t arg2) {
 
 static inline uint64_t syscall3(uint64_t num, uint64_t arg1, uint64_t arg2, uint64_t arg3) {
     uint64_t ret;
-    asm volatile(
+    __asm__ volatile(
         "syscall"
         : "=a"(ret)
         : "a"(num), "D"(arg1), "S"(arg2), "d"(arg3)

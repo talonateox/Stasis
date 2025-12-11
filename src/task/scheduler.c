@@ -154,11 +154,11 @@ restart: ;
 
     if(next != NULL) {
         task_switch(next);
-        asm volatile("sti");
+        __asm__ volatile("sti");
     } else if(current != NULL && current->state == TASK_RUNNING) {
-        asm volatile("sti");
+        __asm__ volatile("sti");
     } else {
-        asm volatile("sti; hlt");
+        __asm__ volatile("sti; hlt");
         goto restart;
     }
 }

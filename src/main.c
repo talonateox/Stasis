@@ -68,7 +68,7 @@ static volatile uint64_t limine_requests_end_marker[] = LIMINE_REQUESTS_END_MARK
 
 static void hcf() {
     for(;;) {
-        asm ("hlt");
+        __asm__ ("hlt");
     }
 }
 
@@ -84,15 +84,16 @@ void create_program(const char* path, const unsigned char* elf, unsigned int len
 }
 
 void create_programs() {
-    static const uint8_t shell_elf[] = {
+    uint8_t shell[] = {
         #embed "programs/shell.elf"
     };
-    static const uint8_t hello_elf[] = {
+
+    uint8_t hello[] = {
         #embed "programs/hello.elf"
     };
 
-    create_program("/system/cmd/sh", shell_elf, sizeof(shell_elf));
-    create_program("/hello", hello_elf, sizeof(hello_elf));
+    create_program("/system/cmd/sh", shell, sizeof(shell));
+    create_program("/hello", hello, sizeof(hello));
 }
 
 void setup_fs() {
