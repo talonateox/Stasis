@@ -19,8 +19,6 @@ int device_register(device_t* dev) {
     dev->next = bus->devices;
     bus->devices = dev;
 
-    // printkf_info("Registered device %s on bus %s\n", dev->name, bus->name);
-
     driver_t* drv = bus->drivers;
     while (drv) {
         if (bus->match && bus->match(dev, drv) == 0) {

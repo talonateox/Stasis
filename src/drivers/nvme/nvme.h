@@ -73,6 +73,12 @@ typedef struct {
     uint64_t num_blocks;
 } nvme_ctrl_t;
 
+typedef struct nvme_device_node {
+    nvme_ctrl_t* ctrl;
+    int device_id;
+    struct nvme_device_node* next;
+} nvme_device_node_t;
+
 void nvme_driver_init();
 int nvme_read(nvme_ctrl_t* ctrl, uint64_t lba, uint32_t num_blocks,
               void* buffer);

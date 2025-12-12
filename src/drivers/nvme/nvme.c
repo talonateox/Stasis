@@ -75,8 +75,6 @@ static int nvme_reset_controller(nvme_ctrl_t* ctrl) {
     uint32_t timeout_ms = cap_to * 500;
     uint32_t timeout = timeout_ms * 1000;
 
-    printkf_info("NVMe waiting to stop...\n", timeout_ms);
-
     while ((ctrl->regs->csts & 0x1) && timeout--) {
         for (volatile int i = 0; i < 1000; i++);
     }
@@ -337,9 +335,6 @@ static int nvme_probe(pci_device_t* pdev) {
     uint64_t cap = ctrl->regs->cap;
     ctrl->max_queue_entries = ((cap >> 0) & 0xFFFF) + 1;
     ctrl->doorbell_stride = 4 << ((cap >> 32) & 0xF);
-
-    printkf_ok("NVMe controller: max_qe=%u, doorbell_stride=%u\n",
-               ctrl->max_queue_entries, ctrl->doorbell_stride);
 
     if (nvme_reset_controller(ctrl) < 0) {
         printkf_error("nvme_probe(): Failed to reset NVMe controller\n");
