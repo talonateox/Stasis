@@ -44,3 +44,5 @@ page_table_t* page_get_pml4();
 void* page_table_get_physical_from(page_table_t* pml4, void* virt);
 page_direntry_t* page_table_get_pte(page_table_t* pml4, void* virt);
 bool page_handle_cow_fault(void* fault_addr);
+
+uint64_t virt_to_phys(void* virt);

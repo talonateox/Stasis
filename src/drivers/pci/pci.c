@@ -208,7 +208,10 @@ void* pci_map_bar(pci_device_t* dev, uint8_t bar_num) {
         addr |= ((uint64_t)bar_high << 32);
     }
 
-    page_map_memory((void*)addr, (void*)addr);
+    for (int i = 0; i < 2; i++) {
+        page_map_memory((void*)(addr + i * 0x1000), (void*)(addr + i * 0x1000));
+    }
+
     return (void*)addr;
 }
 

@@ -356,3 +356,7 @@ bool page_handle_cow_fault(void* fault_addr) {
 
     return true;
 }
+
+uint64_t virt_to_phys(void* virt) {
+    return (uint64_t)virt - _g_page_table_manager.offset;
+}

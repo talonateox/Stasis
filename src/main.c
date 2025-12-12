@@ -20,6 +20,7 @@
 #include "mem/alloc/page_frame_alloc.h"
 #include "mem/memmap.h"
 #include "mem/paging/paging.h"
+#include "std/string.h"
 #include "syscall/syscall.h"
 #include "task/scheduler.h"
 #include "task/task.h"
