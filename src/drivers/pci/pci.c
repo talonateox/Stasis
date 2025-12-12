@@ -83,8 +83,10 @@ static void func_enumerate(uint64_t dev_address, uint64_t bus, uint64_t dev,
     const char* vendor_name = pci_get_vendor_name(pdev->header->vendor);
     const char* class_name = pci_get_class_name(pdev->header->_class);
 
-    printkf("%x/%x:%x - %s %s (%x:%x)\n", bus, dev, func, vendor_name,
-            class_name, pdev->header->vendor, pdev->header->device);
+    printkf_info("%x/%x:%x - %s %s (%x:%x) [%02x:%02x:%02x]\n", bus, dev, func,
+                 vendor_name, class_name, pdev->header->vendor,
+                 pdev->header->device, pdev->header->_class,
+                 pdev->header->subclass, pdev->header->prog_if);
 
     device_register(&pdev->device);
 }
@@ -97,8 +99,14 @@ static void dev_enumerate(uint64_t bus_address, uint64_t bus, uint64_t dev) {
     pci_device_header_t* header = (pci_device_header_t*)dev_address;
     if (header->device == 0 || header->device == 0xffff) return;
 
-    for (uint64_t func = 0; func < 8; func++) {
-        func_enumerate(dev_address, bus, dev, func);
+    bool is_multifunction = (header->header_type & 0x80) != 0;
+
+    func_enumerate(dev_address, bus, dev, 0);
+
+    if (is_multifunction) {
+        for (uint64_t func = 1; func < 8; func++) {
+            func_enumerate(dev_address, bus, dev, func);
+        }
     }
 }
 
@@ -108,7 +116,6 @@ static void bus_enumerate(uint64_t base_address, uint64_t bus) {
     page_map_memory((void*)bus_address, (void*)bus_address);
 
     pci_device_header_t* header = (pci_device_header_t*)bus_address;
-    if (header->device == 0 || header->device == 0xffff) return;
 
     for (uint64_t dev = 0; dev < 32; dev++) {
         dev_enumerate(bus_address, bus, dev);
@@ -137,6 +144,7 @@ int pci_driver_register(pci_driver_t* drv) {
     if (!drv) return -1;
 
     drv->driver.bus = &pci_bus_type;
+
     return driver_register(&drv->driver);
 }
 

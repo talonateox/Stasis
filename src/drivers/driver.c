@@ -19,7 +19,7 @@ int device_register(device_t* dev) {
     dev->next = bus->devices;
     bus->devices = dev;
 
-    printkf_info("Registered device %s on bus %s\n", dev->name, bus->name);
+    // printkf_info("Registered device %s on bus %s\n", dev->name, bus->name);
 
     driver_t* drv = bus->drivers;
     while (drv) {
@@ -74,6 +74,7 @@ int driver_register(driver_t* drv) {
     while (dev) {
         if (!dev->driver && bus->match && bus->match(dev, drv) == 0) {
             dev->driver = drv;
+
             if (drv->probe) {
                 int ret = drv->probe(dev);
                 if (ret == 0) {

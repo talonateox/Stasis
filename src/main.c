@@ -6,6 +6,7 @@
 #include "drivers/acpi/acpi.h"
 #include "drivers/driver.h"
 #include "drivers/keyboard/keyboard.h"
+#include "drivers/nvme/nvme.h"
 #include "drivers/pci/pci.h"
 #include "drivers/pic/pic.h"
 #include "drivers/timer/timer.h"
@@ -150,7 +151,9 @@ void kmain() {
 
     driver_manager_init();
     acpi_init(rsdp, offset);
+
     pci_init(acpi_get_mcfg());
+    nvme_driver_init();
 
     printkf_info("FREE RAM: %k%llu%k\n", 0xcccc66, pfallocator_get_free_ram(),
                  0xffffff);

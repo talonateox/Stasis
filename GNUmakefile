@@ -132,5 +132,7 @@ bin/$(OUTPUT).iso: bin/$(OUTPUT)
 	./limine/limine bios-install bin/$(OUTPUT).iso
 
 .PHONY: run
-run:
-	qemu-system-x86_64 -cdrom bin/$(OUTPUT).iso -m 1024M -machine q35 -net none
+run: bin/$(OUTPUT).iso
+	qemu-system-x86_64 -cdrom bin/$(OUTPUT).iso -m 1024M -machine q35 -net none \
+		-drive file=nvme.img,if=none,id=nvme0 \
+		-device nvme,drive=nvme0,serial=deadbeef,addr=0x5
