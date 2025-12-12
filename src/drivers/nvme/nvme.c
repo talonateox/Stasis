@@ -5,8 +5,7 @@
 #include "../pci/pci.h"
 
 static const pci_device_id_t nvme_ids[] = {
-    {PCI_DEVICE(0x1b36, 0x10)},
-    // {.vendor = PCI_ANY_ID, .device = PCI_ANY_ID, .class_mask = 0x010802},
+    {PCI_DEVICE_CLASS(0x010802, 0xffffff)},
     {0},
 };
 

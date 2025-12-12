@@ -22,11 +22,23 @@ static int pci_bus_match(device_t* dev, driver_t* drv) {
     if (!pdrv->id_table) return -1;
 
     const pci_device_id_t* id = pdrv->id_table;
-    while (id->vendor || id->device) {
-        if ((id->vendor == PCI_ANY_ID || id->vendor == pdev->header->vendor) &&
-            (id->device == PCI_ANY_ID || id->device == pdev->header->device)) {
+    while (id->vendor || id->device || id->class) {
+        uint32_t dev_class = (pdev->header->_class << 16) |
+                             (pdev->header->subclass << 8) |
+                             pdev->header->prog_if;
+
+        if (id->class) {
+            uint32_t mask = id->class_mask ? id->class_mask : 0xFFFFFF;
+            if ((dev_class & mask) == (id->class & mask)) {
+                return 0;
+            }
+        } else if ((id->vendor == PCI_ANY_ID ||
+                    id->vendor == pdev->header->vendor) &&
+                   (id->device == PCI_ANY_ID ||
+                    id->device == pdev->header->device)) {
             return 0;
         }
+
         id++;
     }
 
@@ -144,6 +156,7 @@ int pci_driver_register(pci_driver_t* drv) {
     if (!drv) return -1;
 
     drv->driver.bus = &pci_bus_type;
+    drv->driver.probe = &pci_bus_probe;
 
     return driver_register(&drv->driver);
 }
