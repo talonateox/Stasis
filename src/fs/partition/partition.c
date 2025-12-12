@@ -206,9 +206,6 @@ static vfs_ops_t partition_dev_ops = {
 void partition_register(partition_table_t* table) {
     if (!table) return;
 
-    printkf_info("Registering %d partition(s) from %s\n", table->num_partitions,
-                 table->device_path);
-
     for (int i = 0; i < table->num_partitions; i++) {
         partition_info_t* part = &table->partitions[i];
 
@@ -218,7 +215,8 @@ void partition_register(partition_table_t* table) {
 
         vfs_node_t* part_node = vfs_create(part_path, VFS_FILE);
         if (!part_node) {
-            printkf_error("Failed to create %s\n", part_path);
+            printkf_error("partition_register(): Failed to create %s\n",
+                          part_path);
             continue;
         }
 
@@ -232,8 +230,5 @@ void partition_register(partition_table_t* table) {
         part_node->ops = &partition_dev_ops;
         part_node->size = pdata->size;
         part_node->data = pdata;
-
-        printkf_ok("Registered %s (%u MB, type %s)\n", part_path,
-                   (uint32_t)(pdata->size / (1024 * 1024)), part->type_name);
     }
 }

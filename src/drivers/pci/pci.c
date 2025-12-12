@@ -127,8 +127,6 @@ static void bus_enumerate(uint64_t base_address, uint64_t bus) {
     uint64_t bus_address = base_address + offset;
     page_map_memory((void*)bus_address, (void*)bus_address);
 
-    pci_device_header_t* header = (pci_device_header_t*)bus_address;
-
     for (uint64_t dev = 0; dev < 32; dev++) {
         dev_enumerate(bus_address, bus, dev);
     }
@@ -208,7 +206,7 @@ void* pci_map_bar(pci_device_t* dev, uint8_t bar_num) {
         addr |= ((uint64_t)bar_high << 32);
     }
 
-    for (int i = 0; i < 2; i++) {
+    for (int i = 0; i < 8; i++) {
         page_map_memory((void*)(addr + i * 0x1000), (void*)(addr + i * 0x1000));
     }
 

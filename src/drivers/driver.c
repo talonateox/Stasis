@@ -119,6 +119,7 @@ int bus_register(bus_type_t* bus) {
     bus_list = bus;
 
     printkf_info("Registered bus: %s\n", bus->name);
+    return 0;
 }
 
 device_t* device_create(const char* name, device_type_t type) {

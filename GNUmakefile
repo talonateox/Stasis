@@ -138,6 +138,6 @@ run: bin/$(OUTPUT).iso
 .PHONY: runnvme
 runnvme: bin/$(OUTPUT).iso
 	qemu-system-x86_64 -cdrom bin/$(OUTPUT).iso -m 1024M -machine q35 -net none \
-		-drive file=disks/disk0.img,if=none,id=nvm0 \
+		-drive file=disks/disk0.img,if=none,id=nvm0,format=raw \
 		-device nvme,serial=deadbeef,drive=nvm0 \
         -boot menu=on

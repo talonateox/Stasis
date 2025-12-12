@@ -11,6 +11,7 @@
 #include "drivers/pic/pic.h"
 #include "drivers/timer/timer.h"
 #include "elf/elf.h"
+#include "fs/mount/mount.h"
 #include "fs/tmpfs/tmpfs.h"
 #include "fs/vfs/vfs.h"
 #include "interrupts/interrupts.h"
@@ -70,7 +71,7 @@ void create_program(const char* path, const unsigned char* elf,
                     unsigned int len) {
     int fd = vfs_open(path, O_CREAT | O_WRONLY | O_TRUNC);
     if (fd < 0) {
-        printkf_error("Failed to create '%s'\n", path);
+        printkf_error("create_program(): Failed to create '%s'\n", path);
         return;
     }
 
@@ -144,6 +145,7 @@ void kmain() {
     heap_init((void*)0xFFFF900000000000, 0x10, offset);
 
     vfs_init();
+    mount_init();
     tmpfs_init();
 
     setup_fs();
@@ -178,6 +180,10 @@ void kmain() {
         hcf();
     }
 
+    int result = mount("/dev/nvme0p1", "/mnt", "fat32");
+    if (result < 0) {
+        printkf_error("main(): Failed to mount FAT32\n");
+    }
     scheduler_add_task(init);
     scheduler_enable();
 

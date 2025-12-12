@@ -155,7 +155,8 @@ void nvme_register_device(nvme_ctrl_t* ctrl) {
 
     vfs_node_t* nvme_node = vfs_create(dev_path, VFS_FILE);
     if (!nvme_node) {
-        printkf_error("Failed to create %s\n", dev_path);
+        printkf_error("nvme_register_device(): Failed to create %s\n",
+                      dev_path);
         return;
     }
 
