@@ -613,17 +613,6 @@ fat32_fs_t *fat32_mount(const char *device_path) {
     fs->total_clusters = data_sectors / fs->boot.sectors_per_cluster;
     fs->bytes_per_cluster = fs->boot.sectors_per_cluster * fs->boot.bytes_per_sector;
 
-    printkf_ok("FAT32 filesystem mounted:\n");
-    printkf_info("  Volume label: %.11s\n", fs->boot.volume_label);
-    printkf_info("  Bytes per sector: %u\n", fs->boot.bytes_per_sector);
-    printkf_info("  Sectors per cluster: %u\n", fs->boot.sectors_per_cluster);
-    printkf_info("  Bytes per cluster: %u\n", fs->bytes_per_cluster);
-    printkf_info("  Reserved sectors: %u\n", fs->boot.reserved_sectors);
-    printkf_info("  Number of FATs: %u\n", fs->boot.num_fats);
-    printkf_info("  Sectors per FAT: %u\n", fs->boot.sectors_per_fat_32);
-    printkf_info("  Root cluster: %u\n", fs->boot.root_cluster);
-    printkf_info("  Total clusters: %u\n", fs->total_clusters);
-
     size_t fat_size_bytes = fat_size * fs->boot.bytes_per_sector;
     fs->fat_cache = (uint32_t *)malloc(fat_size_bytes);
     if (!fs->fat_cache) {
@@ -810,6 +799,7 @@ static vfs_ops_t fat32_vfs_ops = {
 };
 
 static void fat32_populate_vfs_dir(fat32_fs_t *fs, vfs_node_t *vfs_dir, uint32_t cluster) {
+
     fat32_dir_entry_t *entries;
     int count;
 
@@ -822,6 +812,10 @@ static void fat32_populate_vfs_dir(fat32_fs_t *fs, vfs_node_t *vfs_dir, uint32_t
 
         char filename[13];
         fat32_format_filename(entry->name, filename);
+
+        if (filename[0] == '.' && (filename[1] == '\0' || (filename[1] == '.' && filename[2] == '\0'))) {
+            continue;
+        }
 
         vfs_node_t *node = (vfs_node_t *)malloc(sizeof(vfs_node_t));
         memset(node, 0, sizeof(vfs_node_t));

@@ -26,6 +26,8 @@ static int nvme_submit_command(nvme_queue_t *queue, nvme_sqe_t *cmd, void *resul
     uint32_t timeout = 1000000;
 
     while (timeout--) {
+        __asm__ volatile("mfence" ::: "memory");
+
         nvme_cqe_t *cqe = &queue->cq[queue->cq_head];
 
         uint16_t phase = (cqe->status >> 0) & 1;
@@ -33,26 +35,27 @@ static int nvme_submit_command(nvme_queue_t *queue, nvme_sqe_t *cmd, void *resul
             continue;
         }
 
-        if (cqe->cid == cid) {
+        uint16_t completion_cid = cqe->cid;
+        uint16_t status = (cqe->status >> 1) & 0x7FF;
+
+        if (completion_cid == cid) {
             if (result) {
                 memcpy(result, cqe, sizeof(nvme_cqe_t));
-            }
-
-            uint16_t status = (cqe->status >> 1) & 0x7FF;
-            if (status != 0) {
-                printkf_error("nvme_submit_command(): Command failed with status 0x%x\n", status);
             }
 
             queue->cq_head = (queue->cq_head + 1) % queue->size;
             if (queue->cq_head == 0) {
                 queue->phase = !queue->phase;
             }
-
             *queue->cq_doorbell = queue->cq_head;
 
+            if (status != 0) {
+                printkf_error("nvme_submit_command(): Command %u failed with status 0x%x\n", cid, status);
+            }
             return status == 0 ? 0 : -1;
         }
 
+        printkf_info("nvme_submit_command(): Got completion for CID %u while waiting for %u\n", completion_cid, cid);
         queue->cq_head = (queue->cq_head + 1) % queue->size;
         if (queue->cq_head == 0) {
             queue->phase = !queue->phase;
@@ -60,7 +63,7 @@ static int nvme_submit_command(nvme_queue_t *queue, nvme_sqe_t *cmd, void *resul
         *queue->cq_doorbell = queue->cq_head;
     }
 
-    printkf_error("nvme_submit_command(): Command timeout\n");
+    printkf_error("nvme_submit_command(): Command %u timeout (no completion after %u iterations)\n", cid, 5000000);
     return -1;
 }
 
@@ -128,7 +131,6 @@ static int nvme_create_admin_queue(nvme_ctrl_t *ctrl) {
 
     ctrl->admin_queue.sq_doorbell = (uint32_t *)((uint8_t *)ctrl->regs + 0x1000);
     ctrl->admin_queue.cq_doorbell = (uint32_t *)((uint8_t *)ctrl->regs + 0x1000 + ctrl->doorbell_stride);
-
     return 0;
 }
 
