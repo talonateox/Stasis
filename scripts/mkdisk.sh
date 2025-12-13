@@ -4,7 +4,7 @@ set -e
 IMG=disks/disk0.img
 SIZE=1024
 
-dd if=/dev/zero of=$IMG bs=1M count=$SIZE
+truncate -s ${SIZE}M $IMG 
 
 parted -s $IMG mklabel gpt
 parted -s $IMG mkpart bios_boot 1MiB 2MiB

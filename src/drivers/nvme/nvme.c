@@ -70,6 +70,8 @@ static int nvme_submit_command(nvme_queue_t *queue, nvme_sqe_t *cmd, void *resul
 static int nvme_reset_controller(nvme_ctrl_t *ctrl) {
     ctrl->regs->cc = 0;
 
+    __asm__ volatile("mfence" ::: "memory");
+
     uint64_t cap = ctrl->regs->cap;
     uint8_t cap_to = (cap >> 24) & 0xFF;
     uint32_t timeout_ms = cap_to * 500;
@@ -83,10 +85,12 @@ static int nvme_reset_controller(nvme_ctrl_t *ctrl) {
     uint32_t csts = ctrl->regs->csts;
 
     if (csts & 0x1) {
-        printkf_error("nvme_reset_controller(): Controller failed to reset (CSTS.RDY "
-                      "still 1)\n");
+        printkf_error("nvme_reset_controller(): Controller failed to reset (CSTS.RDY still 1)\n");
         return -1;
     }
+
+    for (volatile int i = 0; i < 100000; i++)
+        ;
 
     return 0;
 }
@@ -135,6 +139,9 @@ static int nvme_create_admin_queue(nvme_ctrl_t *ctrl) {
 }
 
 static int nvme_enable_controller(nvme_ctrl_t *ctrl) {
+    volatile uint32_t *bar = (volatile uint32_t *)ctrl->regs;
+    uint64_t cap = bar[0] | ((uint64_t)bar[1] << 32);
+
     uint32_t csts = ctrl->regs->csts;
 
     if (csts & 0x1) {
@@ -142,21 +149,20 @@ static int nvme_enable_controller(nvme_ctrl_t *ctrl) {
         return 0;
     }
 
-    uint64_t cap = ctrl->regs->cap;
-
     uint32_t cc = (1 << 0) | (0 << 4) | (0 << 7) | (0 << 11) | (6 << 16) | (4 << 20) | (0 << 24);
 
     ctrl->regs->cc = cc;
 
+    __asm__ volatile("mfence" ::: "memory");
+
     uint8_t cap_to = (cap >> 24) & 0xFF;
     uint32_t timeout_ms = cap_to * 500;
-    printkf_info("NVMe waiting for ready...\n", timeout_ms);
+    if (timeout_ms == 0)
+        timeout_ms = 5000;
 
     uint32_t timeout = timeout_ms * 1000;
-    uint32_t iterations = 0;
 
     while (!(ctrl->regs->csts & 0x1) && timeout--) {
-        iterations++;
         for (volatile int i = 0; i < 1000; i++)
             ;
     }
