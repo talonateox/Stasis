@@ -108,36 +108,15 @@ obj/%.asm.o: %.asm GNUmakefile
 
 .PHONY: clean
 clean:
-	rm -rf bin obj iso_root
+	rm -rf bin obj
 
-bin/$(OUTPUT).iso: bin/$(OUTPUT)
-	rm -rf iso_root
-	mkdir -p iso_root
-
-	mkdir -p iso_root/boot
-	cp -v bin/$(OUTPUT) iso_root/boot/kImg
-	mkdir -p iso_root/boot/limine
-	cp -v limine.conf limine/limine-bios.sys limine/limine-bios-cd.bin \
-		limine/limine-uefi-cd.bin iso_root/boot/limine/
-
-	mkdir -p iso_root/boot/EFI
-	cp -v limine/BOOTX64.EFI iso_root/boot/EFI/
-	cp -v limine/BOOTIA32.EFI iso_root/boot/EFI/
-
-	xorriso -as mkisofs -R -r -J -b boot/limine/limine-bios-cd.bin \
-		-no-emul-boot -boot-load-size 4 -boot-info-table -hfsplus \
-		-apm-block-size 2048 --efi-boot boot/limine/limine-uefi-cd.bin \
-		-efi-boot-part --efi-boot-image --protective-msdos-label\
-		iso_root -o bin/$(OUTPUT).iso
-	./limine/limine bios-install bin/$(OUTPUT).iso
+.PHONY: disk
+disks/disk0.img: bin/$(OUTPUT)
+	./scripts/mkdisk.sh
 
 .PHONY: run
-run: bin/$(OUTPUT).iso
-	qemu-system-x86_64 -cdrom bin/$(OUTPUT).iso -m 1024M -machine q35 -net none
-
-.PHONY: runnvme
-runnvme: bin/$(OUTPUT).iso
-	qemu-system-x86_64 -cdrom bin/$(OUTPUT).iso -m 1024M -machine q35 -net none \
+run: disks/disk0.img
+	qemu-system-x86_64 -m 1024M -machine q35 -net none \
 		-drive file=disks/disk0.img,if=none,id=nvm0,format=raw \
 		-device nvme,serial=deadbeef,drive=nvm0 \
-        -boot menu=on
+		-bios /usr/share/ovmf/OVMF.fd
