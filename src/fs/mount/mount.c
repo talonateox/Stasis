@@ -6,18 +6,18 @@
 #include "../fat32/fat32.h"
 #include "../vfs/vfs.h"
 
-static mount_point_t* mount_list_head = NULL;
+static mount_point_t *mount_list_head = NULL;
 
 void mount_init(void) {
     mount_list_head = NULL;
     printkf_ok("Mount manager initialized\n");
 }
 
-mount_point_t* mount_get_for_path(const char* path) {
-    mount_point_t* best_match = NULL;
+mount_point_t *mount_get_for_path(const char *path) {
+    mount_point_t *best_match = NULL;
     size_t best_match_len = 0;
 
-    mount_point_t* current = mount_list_head;
+    mount_point_t *current = mount_list_head;
     while (current) {
         size_t mp_len = strlen(current->mountpoint);
 
@@ -36,8 +36,8 @@ mount_point_t* mount_get_for_path(const char* path) {
     return best_match;
 }
 
-int mount(const char* device, const char* mountpoint, const char* fs_type) {
-    mount_point_t* existing = mount_list_head;
+int mount(const char *device, const char *mountpoint, const char *fs_type) {
+    mount_point_t *existing = mount_list_head;
     while (existing) {
         if (strcmp(existing->mountpoint, mountpoint) == 0) {
             printkf_error("mount(): %s already in use\n", mountpoint);
@@ -46,7 +46,7 @@ int mount(const char* device, const char* mountpoint, const char* fs_type) {
         existing = existing->next;
     }
 
-    mount_point_t* mp = (mount_point_t*)malloc(sizeof(mount_point_t));
+    mount_point_t *mp = (mount_point_t *)malloc(sizeof(mount_point_t));
     if (!mp) {
         printkf_error("mount(): Failed to allocate mount point\n");
         return -1;
@@ -59,7 +59,7 @@ int mount(const char* device, const char* mountpoint, const char* fs_type) {
     if (strcmp(fs_type, "fat32") == 0) {
         mp->fs_type = FS_TYPE_FAT32;
 
-        if (fat32_mount_vfs(device, mountpoint, (void**)&mp->fs_data) < 0) {
+        if (fat32_mount_vfs(device, mountpoint, (void **)&mp->fs_data) < 0) {
             printkf_error("mount(): Failed to mount FAT32\n");
             free(mp);
             return -1;
@@ -79,12 +79,12 @@ int mount(const char* device, const char* mountpoint, const char* fs_type) {
     return 0;
 }
 
-int unmount(const char* mountpoint) {
-    mount_point_t** current = &mount_list_head;
+int unmount(const char *mountpoint) {
+    mount_point_t **current = &mount_list_head;
 
     while (*current) {
         if (strcmp((*current)->mountpoint, mountpoint) == 0) {
-            mount_point_t* mp = *current;
+            mount_point_t *mp = *current;
 
             if (mp->fs_type == FS_TYPE_FAT32 && mp->fs_data) {
                 fat32_unmount_vfs(mp->fs_data, mountpoint);
@@ -104,24 +104,23 @@ int unmount(const char* mountpoint) {
 void mount_list(void) {
     printkf_info("Mounted filesystems:\n");
 
-    mount_point_t* current = mount_list_head;
+    mount_point_t *current = mount_list_head;
     int count = 0;
 
     while (current) {
-        const char* type_name = "unknown";
+        const char *type_name = "unknown";
         switch (current->fs_type) {
-            case FS_TYPE_TMPFS:
-                type_name = "tmpfs";
-                break;
-            case FS_TYPE_FAT32:
-                type_name = "fat32";
-                break;
-            default:
-                break;
+        case FS_TYPE_TMPFS:
+            type_name = "tmpfs";
+            break;
+        case FS_TYPE_FAT32:
+            type_name = "fat32";
+            break;
+        default:
+            break;
         }
 
-        printkf_info("  %s on %s type %s\n", current->device,
-                     current->mountpoint, type_name);
+        printkf_info("  %s on %s type %s\n", current->device, current->mountpoint, type_name);
 
         current = current->next;
         count++;

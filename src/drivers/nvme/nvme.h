@@ -47,10 +47,10 @@ typedef struct {
 } __attribute__((packed)) nvme_cqe_t;
 
 typedef struct {
-    nvme_sqe_t* sq;
-    nvme_cqe_t* cq;
-    uint32_t* sq_doorbell;
-    uint32_t* cq_doorbell;
+    nvme_sqe_t *sq;
+    nvme_cqe_t *cq;
+    uint32_t *sq_doorbell;
+    uint32_t *cq_doorbell;
     uint16_t sq_tail;
     uint16_t cq_head;
     uint16_t phase;
@@ -58,11 +58,12 @@ typedef struct {
 } nvme_queue_t;
 
 typedef struct {
-    volatile nvme_bar_t* regs;
-    void* mmio_base;
+    volatile nvme_bar_t *regs;
+    void *mmio_base;
+    void *dma_buffer;
 
     nvme_queue_t admin_queue;
-    nvme_queue_t* io_queues;
+    nvme_queue_t *io_queues;
     uint32_t num_io_queues;
 
     uint32_t max_queue_entries;
@@ -74,14 +75,12 @@ typedef struct {
 } nvme_ctrl_t;
 
 typedef struct nvme_device_node {
-    nvme_ctrl_t* ctrl;
+    nvme_ctrl_t *ctrl;
     int device_id;
-    struct nvme_device_node* next;
+    struct nvme_device_node *next;
 } nvme_device_node_t;
 
 void nvme_driver_init();
-int nvme_read(nvme_ctrl_t* ctrl, uint64_t lba, uint32_t num_blocks,
-              void* buffer);
-int nvme_write(nvme_ctrl_t* ctrl, uint64_t lba, uint32_t num_blocks,
-               const void* buffer);
-void nvme_register_device(nvme_ctrl_t* ctrl);
+int nvme_read(nvme_ctrl_t *ctrl, uint64_t lba, uint32_t num_blocks, void *buffer);
+int nvme_write(nvme_ctrl_t *ctrl, uint64_t lba, uint32_t num_blocks, const void *buffer);
+void nvme_register_device(nvme_ctrl_t *ctrl);

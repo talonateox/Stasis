@@ -76,15 +76,13 @@ typedef struct {
     uint32_t total_clusters;
     uint32_t bytes_per_cluster;
 
-    uint32_t* fat_cache;
+    uint32_t *fat_cache;
     bool fat_cache_dirty;
 } fat32_fs_t;
 
-fat32_fs_t* fat32_mount(const char* device_path);
-void fat32_unmount(fat32_fs_t* fs);
-int fat32_mount_vfs(const char* device_path, const char* mountpoint,
-                    void** fs_data_out);
-void fat32_unmount_vfs(void* fs_data, const char* mountpoint);
+fat32_fs_t *fat32_mount(const char *device_path);
+void fat32_unmount(fat32_fs_t *fs);
+int fat32_mount_vfs(const char *device_path, const char *mountpoint, void **fs_data_out);
+void fat32_unmount_vfs(void *fs_data, const char *mountpoint);
 
-int fat32_read_file(fat32_fs_t* fs, fat32_dir_entry_t* entry, void* buffer,
-                    size_t size);
+int fat32_read_file(fat32_fs_t *fs, fat32_dir_entry_t *entry, void *buffer, size_t size);

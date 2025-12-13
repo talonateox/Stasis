@@ -21,5 +21,5 @@ typedef struct {
     uint64_t offset;
 } __attribute__((packed)) idtr_t;
 
-void idt_entry_set_offset(idt_entry_t* entry, uint64_t offset);
-uint64_t idt_entry_get_offset(idt_entry_t* entry);
+void idt_entry_set_offset(idt_entry_t *entry, uint64_t offset);
+uint64_t idt_entry_get_offset(idt_entry_t *entry);

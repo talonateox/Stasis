@@ -52,4 +52,6 @@ void gdt_init() {
     __asm__ volatile("ltr %w0" : : "r"((uint16_t)0x28));
 }
 
-void tss_set_kernel_stack(uint64_t stack) { _g_tss.rsp0 = stack; }
+void tss_set_kernel_stack(uint64_t stack) {
+    _g_tss.rsp0 = stack;
+}

@@ -12,8 +12,7 @@ static const pci_device_id_t nvme_ids[] = {
     {0},
 };
 
-static int nvme_submit_command(nvme_queue_t* queue, nvme_sqe_t* cmd,
-                               void* result) {
+static int nvme_submit_command(nvme_queue_t *queue, nvme_sqe_t *cmd, void *result) {
     uint16_t tail = queue->sq_tail;
 
     memcpy(&queue->sq[tail], cmd, sizeof(nvme_sqe_t));
@@ -27,7 +26,7 @@ static int nvme_submit_command(nvme_queue_t* queue, nvme_sqe_t* cmd,
     uint32_t timeout = 1000000;
 
     while (timeout--) {
-        nvme_cqe_t* cqe = &queue->cq[queue->cq_head];
+        nvme_cqe_t *cqe = &queue->cq[queue->cq_head];
 
         uint16_t phase = (cqe->status >> 0) & 1;
         if (phase != queue->phase) {
@@ -41,9 +40,7 @@ static int nvme_submit_command(nvme_queue_t* queue, nvme_sqe_t* cmd,
 
             uint16_t status = (cqe->status >> 1) & 0x7FF;
             if (status != 0) {
-                printkf_error(
-                    "nvme_submit_command(): Command failed with status 0x%x\n",
-                    status);
+                printkf_error("nvme_submit_command(): Command failed with status 0x%x\n", status);
             }
 
             queue->cq_head = (queue->cq_head + 1) % queue->size;
@@ -67,7 +64,7 @@ static int nvme_submit_command(nvme_queue_t* queue, nvme_sqe_t* cmd,
     return -1;
 }
 
-static int nvme_reset_controller(nvme_ctrl_t* ctrl) {
+static int nvme_reset_controller(nvme_ctrl_t *ctrl) {
     ctrl->regs->cc = 0;
 
     uint64_t cap = ctrl->regs->cap;
@@ -76,33 +73,32 @@ static int nvme_reset_controller(nvme_ctrl_t* ctrl) {
     uint32_t timeout = timeout_ms * 1000;
 
     while ((ctrl->regs->csts & 0x1) && timeout--) {
-        for (volatile int i = 0; i < 1000; i++);
+        for (volatile int i = 0; i < 1000; i++)
+            ;
     }
 
     uint32_t csts = ctrl->regs->csts;
 
     if (csts & 0x1) {
-        printkf_error(
-            "nvme_reset_controller(): Controller failed to reset (CSTS.RDY "
-            "still 1)\n");
+        printkf_error("nvme_reset_controller(): Controller failed to reset (CSTS.RDY "
+                      "still 1)\n");
         return -1;
     }
 
     return 0;
 }
 
-static int nvme_create_admin_queue(nvme_ctrl_t* ctrl) {
+static int nvme_create_admin_queue(nvme_ctrl_t *ctrl) {
     uint16_t queue_size = 64;
 
     size_t sq_size = queue_size * sizeof(nvme_sqe_t);
     size_t cq_size = queue_size * sizeof(nvme_cqe_t);
 
-    ctrl->admin_queue.sq = (nvme_sqe_t*)pfallocator_request_page();
-    ctrl->admin_queue.cq = (nvme_cqe_t*)pfallocator_request_page();
+    ctrl->admin_queue.sq = (nvme_sqe_t *)pfallocator_request_page();
+    ctrl->admin_queue.cq = (nvme_cqe_t *)pfallocator_request_page();
 
     if (!ctrl->admin_queue.sq || !ctrl->admin_queue.cq) {
-        printkf_error(
-            "nvme_create_admin_queue(): Failed to allocate queue memory\n");
+        printkf_error("nvme_create_admin_queue(): Failed to allocate queue memory\n");
         return -1;
     }
 
@@ -130,14 +126,13 @@ static int nvme_create_admin_queue(nvme_ctrl_t* ctrl) {
     ctrl->regs->asq = sq_phys;
     ctrl->regs->acq = cq_phys;
 
-    ctrl->admin_queue.sq_doorbell = (uint32_t*)((uint8_t*)ctrl->regs + 0x1000);
-    ctrl->admin_queue.cq_doorbell =
-        (uint32_t*)((uint8_t*)ctrl->regs + 0x1000 + ctrl->doorbell_stride);
+    ctrl->admin_queue.sq_doorbell = (uint32_t *)((uint8_t *)ctrl->regs + 0x1000);
+    ctrl->admin_queue.cq_doorbell = (uint32_t *)((uint8_t *)ctrl->regs + 0x1000 + ctrl->doorbell_stride);
 
     return 0;
 }
 
-static int nvme_enable_controller(nvme_ctrl_t* ctrl) {
+static int nvme_enable_controller(nvme_ctrl_t *ctrl) {
     uint32_t csts = ctrl->regs->csts;
 
     if (csts & 0x1) {
@@ -147,8 +142,7 @@ static int nvme_enable_controller(nvme_ctrl_t* ctrl) {
 
     uint64_t cap = ctrl->regs->cap;
 
-    uint32_t cc = (1 << 0) | (0 << 4) | (0 << 7) | (0 << 11) | (6 << 16) |
-                  (4 << 20) | (0 << 24);
+    uint32_t cc = (1 << 0) | (0 << 4) | (0 << 7) | (0 << 11) | (6 << 16) | (4 << 20) | (0 << 24);
 
     ctrl->regs->cc = cc;
 
@@ -161,24 +155,23 @@ static int nvme_enable_controller(nvme_ctrl_t* ctrl) {
 
     while (!(ctrl->regs->csts & 0x1) && timeout--) {
         iterations++;
-        for (volatile int i = 0; i < 1000; i++);
+        for (volatile int i = 0; i < 1000; i++)
+            ;
     }
 
     csts = ctrl->regs->csts;
 
     if (!(csts & 0x1)) {
-        printkf_error(
-            "nvme_enable_controller(): Controller failed to become ready\n");
-        printkf_error("nvme_enable_controller(): CSTS: 0x%x (RDY=%u, CFS=%u)\n",
-                      csts, csts & 0x1, (csts >> 1) & 0x1);
+        printkf_error("nvme_enable_controller(): Controller failed to become ready\n");
+        printkf_error("nvme_enable_controller(): CSTS: 0x%x (RDY=%u, CFS=%u)\n", csts, csts & 0x1, (csts >> 1) & 0x1);
         return -1;
     }
 
     return 0;
 }
 
-static int nvme_identify_namespace(nvme_ctrl_t* ctrl, uint32_t nsid) {
-    void* identify = pfallocator_request_page();
+static int nvme_identify_namespace(nvme_ctrl_t *ctrl, uint32_t nsid) {
+    void *identify = pfallocator_request_page();
     memset(identify, 0, 4096);
 
     uint64_t identify_phys = virt_to_phys(identify);
@@ -192,12 +185,11 @@ static int nvme_identify_namespace(nvme_ctrl_t* ctrl, uint32_t nsid) {
     int ret = nvme_submit_command(&ctrl->admin_queue, &cmd, NULL);
 
     if (ret == 0) {
-        uint64_t nsze = *(uint64_t*)identify;
-        uint8_t flbas = *((uint8_t*)identify + 26);
+        uint64_t nsze = *(uint64_t *)identify;
+        uint8_t flbas = *((uint8_t *)identify + 26);
         uint8_t lba_format_index = flbas & 0x0F;
 
-        uint32_t* lbaf =
-            (uint32_t*)((uint8_t*)identify + 128 + (lba_format_index * 4));
+        uint32_t *lbaf = (uint32_t *)((uint8_t *)identify + 128 + (lba_format_index * 4));
         uint8_t lbads = (*lbaf >> 16) & 0xFF;
 
         ctrl->block_size = 1 << lbads;
@@ -208,18 +200,18 @@ static int nvme_identify_namespace(nvme_ctrl_t* ctrl, uint32_t nsid) {
     return ret;
 }
 
-static int nvme_create_io_queues(nvme_ctrl_t* ctrl, uint16_t num_queues) {
+static int nvme_create_io_queues(nvme_ctrl_t *ctrl, uint16_t num_queues) {
     ctrl->num_io_queues = num_queues;
-    ctrl->io_queues = (nvme_queue_t*)malloc(num_queues * sizeof(nvme_queue_t));
+    ctrl->io_queues = (nvme_queue_t *)malloc(num_queues * sizeof(nvme_queue_t));
 
     for (uint16_t i = 0; i < num_queues; i++) {
         uint16_t qid = i + 1;
         uint16_t queue_size = 64;
 
-        nvme_queue_t* queue = &ctrl->io_queues[i];
+        nvme_queue_t *queue = &ctrl->io_queues[i];
 
-        queue->sq = (nvme_sqe_t*)pfallocator_request_page();
-        queue->cq = (nvme_cqe_t*)pfallocator_request_page();
+        queue->sq = (nvme_sqe_t *)pfallocator_request_page();
+        queue->cq = (nvme_cqe_t *)pfallocator_request_page();
         memset(queue->sq, 0, 4096);
         memset(queue->cq, 0, 4096);
 
@@ -238,8 +230,7 @@ static int nvme_create_io_queues(nvme_ctrl_t* ctrl, uint16_t num_queues) {
         cmd.cdw11 = 0x1;
 
         if (nvme_submit_command(&ctrl->admin_queue, &cmd, NULL) < 0) {
-            printkf_error(
-                "nvme_create_io_queues(): Failed to create I/O CQ %u\n", qid);
+            printkf_error("nvme_create_io_queues(): Failed to create I/O CQ %u\n", qid);
             return -1;
         }
 
@@ -250,28 +241,23 @@ static int nvme_create_io_queues(nvme_ctrl_t* ctrl, uint16_t num_queues) {
         cmd.cdw11 = (qid << 16) | 0x1;
 
         if (nvme_submit_command(&ctrl->admin_queue, &cmd, NULL) < 0) {
-            printkf_error(
-                "nvme_create_io_queues(): Failed to create I/O SQ %u\n", qid);
+            printkf_error("nvme_create_io_queues(): Failed to create I/O SQ %u\n", qid);
             return -1;
         }
 
-        uint32_t sq_doorbell_offset =
-            0x1000 + (2 * qid * ctrl->doorbell_stride);
-        uint32_t cq_doorbell_offset =
-            0x1000 + ((2 * qid + 1) * ctrl->doorbell_stride);
+        uint32_t sq_doorbell_offset = 0x1000 + (2 * qid * ctrl->doorbell_stride);
+        uint32_t cq_doorbell_offset = 0x1000 + ((2 * qid + 1) * ctrl->doorbell_stride);
 
-        queue->sq_doorbell =
-            (uint32_t*)((uint8_t*)ctrl->regs + sq_doorbell_offset);
-        queue->cq_doorbell =
-            (uint32_t*)((uint8_t*)ctrl->regs + cq_doorbell_offset);
+        queue->sq_doorbell = (uint32_t *)((uint8_t *)ctrl->regs + sq_doorbell_offset);
+        queue->cq_doorbell = (uint32_t *)((uint8_t *)ctrl->regs + cq_doorbell_offset);
     }
 
     return 0;
 }
 
-int nvme_read(nvme_ctrl_t* ctrl, uint64_t lba, uint32_t num_blocks,
-              void* buffer) {
-    if (num_blocks == 0) return -1;
+int nvme_read(nvme_ctrl_t *ctrl, uint64_t lba, uint32_t num_blocks, void *buffer) {
+    if (num_blocks == 0)
+        return -1;
 
     uint64_t buffer_phys = virt_to_phys(buffer);
 
@@ -284,17 +270,16 @@ int nvme_read(nvme_ctrl_t* ctrl, uint64_t lba, uint32_t num_blocks,
     cmd.cdw11 = (lba >> 32) & 0xFFFFFFFF;
     cmd.cdw12 = (num_blocks - 1);
 
-    nvme_queue_t* queue =
-        ctrl->num_io_queues > 0 ? &ctrl->io_queues[0] : &ctrl->admin_queue;
+    nvme_queue_t *queue = ctrl->num_io_queues > 0 ? &ctrl->io_queues[0] : &ctrl->admin_queue;
 
     return nvme_submit_command(queue, &cmd, NULL);
 }
 
-int nvme_write(nvme_ctrl_t* ctrl, uint64_t lba, uint32_t num_blocks,
-               const void* buffer) {
-    if (num_blocks == 0) return -1;
+int nvme_write(nvme_ctrl_t *ctrl, uint64_t lba, uint32_t num_blocks, const void *buffer) {
+    if (num_blocks == 0)
+        return -1;
 
-    uint64_t buffer_phys = virt_to_phys((void*)buffer);
+    uint64_t buffer_phys = virt_to_phys((void *)buffer);
 
     nvme_sqe_t cmd = {0};
     cmd.cdw0 = NVME_CMD_WRITE;
@@ -305,14 +290,13 @@ int nvme_write(nvme_ctrl_t* ctrl, uint64_t lba, uint32_t num_blocks,
     cmd.cdw11 = (lba >> 32) & 0xFFFFFFFF;
     cmd.cdw12 = (num_blocks - 1);
 
-    nvme_queue_t* queue =
-        ctrl->num_io_queues > 0 ? &ctrl->io_queues[0] : &ctrl->admin_queue;
+    nvme_queue_t *queue = ctrl->num_io_queues > 0 ? &ctrl->io_queues[0] : &ctrl->admin_queue;
 
     return nvme_submit_command(queue, &cmd, NULL);
 }
 
-static int nvme_probe(pci_device_t* pdev) {
-    nvme_ctrl_t* ctrl = (nvme_ctrl_t*)malloc(sizeof(nvme_ctrl_t));
+static int nvme_probe(pci_device_t *pdev) {
+    nvme_ctrl_t *ctrl = (nvme_ctrl_t *)malloc(sizeof(nvme_ctrl_t));
     if (!ctrl) {
         printkf_error("nvme_probe(): Failed to allocate NVMe controller\n");
         return -1;
@@ -320,6 +304,11 @@ static int nvme_probe(pci_device_t* pdev) {
     memset(ctrl, 0, sizeof(nvme_ctrl_t));
 
     device_set_driver_data(&pdev->device, ctrl);
+
+    ctrl->dma_buffer = pfallocator_request_page();
+    if (!ctrl->dma_buffer) {
+        printkf_error("nvme_probe(): Failed to allocate DMA buffer\n");
+    }
 
     pci_enable_mmio(pdev);
     pci_enable_bus_mastering(pdev);
@@ -330,7 +319,7 @@ static int nvme_probe(pci_device_t* pdev) {
         free(ctrl);
         return -1;
     }
-    ctrl->regs = (volatile nvme_bar_t*)ctrl->mmio_base;
+    ctrl->regs = (volatile nvme_bar_t *)ctrl->mmio_base;
 
     uint64_t cap = ctrl->regs->cap;
     ctrl->max_queue_entries = ((cap >> 0) & 0xFFFF) + 1;
@@ -367,10 +356,10 @@ static int nvme_probe(pci_device_t* pdev) {
     return 0;
 }
 
-static void nvme_remove(pci_device_t* pdev) {
+static void nvme_remove(pci_device_t *pdev) {
     printkf_info("NVMe driver removing device %s\n", pdev->device.name);
 
-    nvme_ctrl_t* ctrl = device_get_driver_data(&pdev->device);
+    nvme_ctrl_t *ctrl = device_get_driver_data(&pdev->device);
     if (ctrl) {
         free(ctrl);
     }

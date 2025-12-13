@@ -31,7 +31,6 @@ typedef struct {
     uint64_t reserved;
 } __attribute__((packed)) mcfg_header_t;
 
-void acpi_init(rsdp2_t* rsdp, uint64_t offset);
-sdt_header_t* acpi_find_table(rsdp2_t* rsdp, uint64_t offset,
-                              const char* signature);
-mcfg_header_t* acpi_get_mcfg();
+void acpi_init(rsdp2_t *rsdp, uint64_t offset);
+sdt_header_t *acpi_find_table(rsdp2_t *rsdp, uint64_t offset, const char *signature);
+mcfg_header_t *acpi_get_mcfg();

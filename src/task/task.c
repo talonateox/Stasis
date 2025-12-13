@@ -15,20 +15,19 @@
 #include "../usermode/usermode.h"
 #include "scheduler.h"
 
-static task_t* current_task = NULL;
-static task_t* task_list = NULL;
+static task_t *current_task = NULL;
+static task_t *task_list = NULL;
 static uint32_t next_pid = 1;
 
 static spinlock_t task_lock = {0};
 
 extern void scheduler_schedule();
-extern void task_switch_impl(cpu_state_t** old_context,
-                             cpu_state_t* new_context);
+extern void task_switch_impl(cpu_state_t **old_context, cpu_state_t *new_context);
 
 static void task_entry_wrapper() {
     __asm__ volatile("sti");
 
-    task_t* self = task_current();
+    task_t *self = task_current();
     if (self != NULL && self->entry_point != NULL) {
         self->entry_point();
     }
@@ -43,7 +42,7 @@ static void task_entry_wrapper() {
 }
 
 static void user_task_entry_wrapper() {
-    task_t* self = task_current();
+    task_t *self = task_current();
     if (self == NULL || self->entry_point == NULL) {
         task_exit(0);
     }
@@ -66,8 +65,8 @@ void task_init() {
     next_pid = 1;
 }
 
-task_t* task_create(void (*entry_point)(), uint64_t stack_size) {
-    task_t* task = (task_t*)malloc(sizeof(task_t));
+task_t *task_create(void (*entry_point)(), uint64_t stack_size) {
+    task_t *task = (task_t *)malloc(sizeof(task_t));
     if (task == NULL) {
         printkf_error("task_create(): failed to allocate task\n");
         return NULL;
@@ -93,7 +92,7 @@ task_t* task_create(void (*entry_point)(), uint64_t stack_size) {
 
     uint64_t stack_top = (uint64_t)task->stack + stack_size;
     stack_top &= ~0xFULL;
-    uint64_t* sp = (uint64_t*)stack_top;
+    uint64_t *sp = (uint64_t *)stack_top;
 
     *--sp = (uint64_t)task_entry_wrapper;
     *--sp = 0;
@@ -103,7 +102,7 @@ task_t* task_create(void (*entry_point)(), uint64_t stack_size) {
     *--sp = 0;
     *--sp = 0;
 
-    task->context = (cpu_state_t*)sp;
+    task->context = (cpu_state_t *)sp;
 
     task->next = task_list;
     task_list = task;
@@ -111,10 +110,10 @@ task_t* task_create(void (*entry_point)(), uint64_t stack_size) {
     return task;
 }
 
-task_t* task_create_user(void (*entry_point)(), uint64_t stack_size) {
+task_t *task_create_user(void (*entry_point)(), uint64_t stack_size) {
     (void)stack_size;
 
-    task_t* task = (task_t*)malloc(sizeof(task_t));
+    task_t *task = (task_t *)malloc(sizeof(task_t));
     if (task == NULL) {
         printkf_error("task_create_user(): failed to allocate task\n");
         return NULL;
@@ -149,9 +148,8 @@ task_t* task_create_user(void (*entry_point)(), uint64_t stack_size) {
     task->user_stack_virt = USER_STACK_TOP - task->user_stack_size;
 
     uint64_t hhdm_offset = page_get_offset();
-    void* phys_addr = (void*)((uint64_t)task->user_stack - hhdm_offset);
-    page_map_memory_to(task->page_table, (void*)task->user_stack_virt,
-                       phys_addr);
+    void *phys_addr = (void *)((uint64_t)task->user_stack - hhdm_offset);
+    page_map_memory_to(task->page_table, (void *)task->user_stack_virt, phys_addr);
 
     task->pid = next_pid++;
     task->parent_pid = 0;
@@ -163,7 +161,7 @@ task_t* task_create_user(void (*entry_point)(), uint64_t stack_size) {
 
     uint64_t kstack_top = (uint64_t)task->stack + task->stack_size;
     kstack_top &= ~0xFULL;
-    uint64_t* sp = (uint64_t*)kstack_top;
+    uint64_t *sp = (uint64_t *)kstack_top;
 
     *--sp = (uint64_t)user_task_entry_wrapper;
     *--sp = 0;
@@ -173,7 +171,7 @@ task_t* task_create_user(void (*entry_point)(), uint64_t stack_size) {
     *--sp = 0;
     *--sp = 0;
 
-    task->context = (cpu_state_t*)sp;
+    task->context = (cpu_state_t *)sp;
 
     task->next = task_list;
     task_list = task;
@@ -181,7 +179,7 @@ task_t* task_create_user(void (*entry_point)(), uint64_t stack_size) {
     return task;
 }
 
-task_t* task_create_elf(const char* path, uint64_t stack_size) {
+task_t *task_create_elf(const char *path, uint64_t stack_size) {
     int fd = vfs_open(path, O_RDONLY);
     if (fd < 0) {
         printkf_error("task_create_from_elf: failed to open '%s'\n", path);
@@ -191,7 +189,7 @@ task_t* task_create_elf(const char* path, uint64_t stack_size) {
     int64_t size = vfs_seek(fd, 0, SEEK_END);
     vfs_seek(fd, 0, SEEK_SET);
 
-    void* elf_data = malloc(size);
+    void *elf_data = malloc(size);
     if (elf_data == NULL) {
         vfs_close(fd);
         printkf_error("task_create_from_elf(): out of memory\n");
@@ -201,7 +199,7 @@ task_t* task_create_elf(const char* path, uint64_t stack_size) {
     vfs_read(fd, elf_data, size);
     vfs_close(fd);
 
-    task_t* task = task_create_user(NULL, stack_size);
+    task_t *task = task_create_user(NULL, stack_size);
     if (task == NULL) {
         free(elf_data);
         return NULL;
@@ -220,9 +218,9 @@ task_t* task_create_elf(const char* path, uint64_t stack_size) {
     return task;
 }
 
-task_t* task_find_by_pid(uint32_t pid) {
+task_t *task_find_by_pid(uint32_t pid) {
     uint64_t flags = spin_lock(&task_lock);
-    task_t* t = task_list;
+    task_t *t = task_list;
     while (t != NULL) {
         if (t->pid == pid) {
             spin_unlock(&task_lock, flags);
@@ -234,14 +232,14 @@ task_t* task_find_by_pid(uint32_t pid) {
     return NULL;
 }
 
-task_t* task_fork() {
-    task_t* parent = task_current();
+task_t *task_fork() {
+    task_t *parent = task_current();
     if (parent == NULL) {
         printkf_error("fork(): no current task\n");
         return NULL;
     }
 
-    task_t* child = (task_t*)malloc(sizeof(task_t));
+    task_t *child = (task_t *)malloc(sizeof(task_t));
     if (child == NULL) {
         printkf_error("fork(): failed to allocate child task\n");
         return NULL;
@@ -275,9 +273,8 @@ task_t* task_fork() {
         return NULL;
     }
     memcpy(child->user_stack, parent->user_stack, 0x1000);
-    void* phys_addr = (void*)((uint64_t)child->user_stack - hhdm_offset);
-    page_map_memory_to(child->page_table, (void*)child->user_stack_virt,
-                       phys_addr);
+    void *phys_addr = (void *)((uint64_t)child->user_stack - hhdm_offset);
+    page_map_memory_to(child->page_table, (void *)child->user_stack_virt, phys_addr);
 
     child->pid = next_pid++;
     child->parent_pid = parent->pid;
@@ -293,7 +290,7 @@ task_t* task_fork() {
     uint64_t syscall_offset = saved_syscall_rsp - (uint64_t)parent->stack;
     uint64_t child_syscall_rsp = (uint64_t)child->stack + syscall_offset;
 
-    uint64_t* child_sp = (uint64_t*)(child_syscall_rsp - 7 * sizeof(uint64_t));
+    uint64_t *child_sp = (uint64_t *)(child_syscall_rsp - 7 * sizeof(uint64_t));
     child_sp[0] = 0;
     child_sp[1] = 0;
     child_sp[2] = 0;
@@ -302,7 +299,7 @@ task_t* task_fork() {
     child_sp[5] = 0;
     child_sp[6] = (uint64_t)fork_child_return;
 
-    child->context = (cpu_state_t*)child_sp;
+    child->context = (cpu_state_t *)child_sp;
 
     uint64_t flags = spin_lock(&task_lock);
     child->next = task_list;
@@ -313,13 +310,13 @@ task_t* task_fork() {
     return child;
 }
 
-static void task_remove_from_list(task_t* task) {
+static void task_remove_from_list(task_t *task) {
     uint64_t flags = spin_lock(&task_lock);
 
     if (task_list == task) {
         task_list = task->next;
     } else {
-        task_t* prev = task_list;
+        task_t *prev = task_list;
         while (prev != NULL && prev->next != task) {
             prev = prev->next;
         }
@@ -331,26 +328,30 @@ static void task_remove_from_list(task_t* task) {
     spin_unlock(&task_lock, flags);
 }
 
-static void task_destroy(task_t* task) {
-    if (task == NULL) return;
+static void task_destroy(task_t *task) {
+    if (task == NULL)
+        return;
 
     scheduler_remove_task(task);
     task_remove_from_list(task);
 
-    if (task->stack) free(task->stack);
-    if (task->user_stack) pfallocator_free_page(task->user_stack);
-    if (task->page_table) page_table_destroy_user(task->page_table);
+    if (task->stack)
+        free(task->stack);
+    if (task->user_stack)
+        pfallocator_free_page(task->user_stack);
+    if (task->page_table)
+        page_table_destroy_user(task->page_table);
 
     free(task);
 }
 
 int task_waitpid(uint32_t pid) {
-    task_t* child = task_find_by_pid(pid);
+    task_t *child = task_find_by_pid(pid);
     if (child == NULL) {
         return -1;
     }
 
-    task_t* parent = task_current();
+    task_t *parent = task_current();
     if (child->parent_pid != parent->pid) {
         return -1;
     }
@@ -366,14 +367,16 @@ int task_waitpid(uint32_t pid) {
     return exit_code;
 }
 
-task_t* task_current() { return current_task; }
+task_t *task_current() {
+    return current_task;
+}
 
-void task_switch(task_t* next) {
+void task_switch(task_t *next) {
     if (next == NULL || next == current_task) {
         return;
     }
 
-    task_t* old_task = current_task;
+    task_t *old_task = current_task;
 
     if (old_task != NULL && old_task->state == TASK_RUNNING) {
         old_task->state = TASK_READY;
@@ -400,7 +403,9 @@ void task_switch(task_t* next) {
     }
 }
 
-void task_yield() { scheduler_schedule(); }
+void task_yield() {
+    scheduler_schedule();
+}
 
 void task_block() {
     uint64_t flags = spin_lock(&task_lock);
@@ -414,8 +419,9 @@ void task_block() {
     scheduler_schedule();
 }
 
-void task_unblock(task_t* task) {
-    if (task == NULL) return;
+void task_unblock(task_t *task) {
+    if (task == NULL)
+        return;
 
     uint64_t flags = spin_lock(&task_lock);
 
@@ -428,11 +434,14 @@ void task_unblock(task_t* task) {
 }
 
 void sleep_ms(uint64_t ms) {
-    if (ms == 0) return;
-    if (current_task == NULL) return;
+    if (ms == 0)
+        return;
+    if (current_task == NULL)
+        return;
 
     uint64_t ticks_to_sleep = (ms + 9) / 10;
-    if (ticks_to_sleep == 0) ticks_to_sleep = 1;
+    if (ticks_to_sleep == 0)
+        ticks_to_sleep = 1;
 
     __asm__ volatile("cli");
 
@@ -444,7 +453,7 @@ void sleep_ms(uint64_t ms) {
 }
 
 void task_exit(int code) {
-    task_t* current = task_current();
+    task_t *current = task_current();
 
     if (current != NULL) {
         current->state = TASK_TERMINATED;

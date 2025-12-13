@@ -26,9 +26,9 @@ typedef struct {
     partition_info_t partitions[MAX_PARTITIONS];
 } partition_table_t;
 
-partition_table_t* partition_parse_mbr(const char* device_path);
+partition_table_t *partition_parse_mbr(const char *device_path);
 
-void partition_free(partition_table_t* table);
+void partition_free(partition_table_t *table);
 
-partition_info_t* partition_get(partition_table_t* table, int index);
-void partition_register(partition_table_t* table);
+partition_info_t *partition_get(partition_table_t *table, int index);
+void partition_register(partition_table_t *table);

@@ -28,14 +28,14 @@ typedef struct task {
     uint32_t pid;
     uint32_t parent_pid;
     task_state_t state;
-    cpu_state_t* context;
-    void* stack;
-    page_table_t* page_table;
+    cpu_state_t *context;
+    void *stack;
+    page_table_t *page_table;
     uint64_t stack_size;
     void (*entry_point)();
-    struct task* next;
+    struct task *next;
     uint64_t wake_tick;
-    void* user_stack;
+    void *user_stack;
     uint64_t user_stack_virt;
     uint64_t user_stack_size;
     uint8_t is_user;
@@ -43,17 +43,17 @@ typedef struct task {
 } task_t;
 
 void task_init();
-task_t* task_create(void (*entry_point)(), uint64_t stack_size);
-task_t* task_create_user(void (*entry_point)(), uint64_t stack_size);
-task_t* task_create_elf(const char* path, uint64_t stack_size);
-task_t* task_current();
-void task_switch(task_t* next);
+task_t *task_create(void (*entry_point)(), uint64_t stack_size);
+task_t *task_create_user(void (*entry_point)(), uint64_t stack_size);
+task_t *task_create_elf(const char *path, uint64_t stack_size);
+task_t *task_current();
+void task_switch(task_t *next);
 void task_yield();
 void task_block();
-void task_unblock(task_t* task);
+void task_unblock(task_t *task);
 void sleep_ms(uint64_t ms);
 void task_exit(int code);
 
-task_t* task_fork();
+task_t *task_fork();
 int task_waitpid(uint32_t pid);
-task_t* task_find_by_pid(uint32_t pid);
+task_t *task_find_by_pid(uint32_t pid);

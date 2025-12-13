@@ -31,27 +31,25 @@ struct vfs_node {
     vfs_node_type_t type;
     uint64_t size;
 
-    vfs_node_t* parent;
-    vfs_node_t* children;
-    vfs_node_t* next;
+    vfs_node_t *parent;
+    vfs_node_t *children;
+    vfs_node_t *next;
 
-    void* data;
+    void *data;
 
-    vfs_ops_t* ops;
+    vfs_ops_t *ops;
 };
 
 struct vfs_ops {
-    int64_t (*read)(vfs_node_t* node, void* buf, size_t size, size_t offset);
-    int64_t (*write)(vfs_node_t* node, const void* buf, size_t size,
-                     size_t offset);
-    vfs_node_t* (*create)(vfs_node_t* parent, const char* name,
-                          vfs_node_type_t type);
-    int (*unlink)(vfs_node_t* node);
-    int (*truncate)(vfs_node_t* node, size_t size);
+    int64_t (*read)(vfs_node_t *node, void *buf, size_t size, size_t offset);
+    int64_t (*write)(vfs_node_t *node, const void *buf, size_t size, size_t offset);
+    vfs_node_t *(*create)(vfs_node_t *parent, const char *name, vfs_node_type_t type);
+    int (*unlink)(vfs_node_t *node);
+    int (*truncate)(vfs_node_t *node, size_t size);
 };
 
 typedef struct {
-    vfs_node_t* node;
+    vfs_node_t *node;
     int flags;
     size_t offset;
     bool in_use;
@@ -59,18 +57,18 @@ typedef struct {
 
 void vfs_init();
 
-vfs_node_t* vfs_lookup(const char* path);
-vfs_node_t* vfs_create(const char* path, vfs_node_type_t type);
-int vfs_unlink(const char* path, bool recursive);
+vfs_node_t *vfs_lookup(const char *path);
+vfs_node_t *vfs_create(const char *path, vfs_node_type_t type);
+int vfs_unlink(const char *path, bool recursive);
 
-int vfs_open(const char* path, int flags);
+int vfs_open(const char *path, int flags);
 int vfs_close(int fd);
-int64_t vfs_read(int fd, void* buf, size_t size);
-int64_t vfs_write(int fd, const void* buf, size_t size);
+int64_t vfs_read(int fd, void *buf, size_t size);
+int64_t vfs_write(int fd, const void *buf, size_t size);
 int64_t vfs_seek(int fd, int64_t offset, int whence);
 int64_t vfs_tell(int fd);
 
-int vfs_mkdir(const char* path);
-int vfs_readdir(int fd, char* name, size_t name_size);
+int vfs_mkdir(const char *path);
+int vfs_readdir(int fd, char *name, size_t name_size);
 
-vfs_node_t* vfs_root();
+vfs_node_t *vfs_root();

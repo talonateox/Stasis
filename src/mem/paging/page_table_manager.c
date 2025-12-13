@@ -6,14 +6,15 @@
 #include "../alloc/page_frame_alloc.h"
 #include "page_map_indexer.h"
 
-bool page_table_map(page_table_manager_t* manager, void* virt, void* phys) {
+bool page_table_map(page_table_manager_t *manager, void *virt, void *phys) {
     page_map_indexer_t indexer = page_map_indexer_new((uint64_t)virt);
 
     page_direntry_t pde = manager->pml4->entries[indexer.pdp];
-    page_table_t* pdp;
+    page_table_t *pdp;
     if (!page_direntry_get_flag(&pde, PAGE_PRESENT)) {
-        pdp = (page_table_t*)pfallocator_request_page();
-        if (pdp == NULL) return false;
+        pdp = (page_table_t *)pfallocator_request_page();
+        if (pdp == NULL)
+            return false;
         memset(pdp, 0, PAGE_SIZE);
 
         uint64_t pdp_phys = (uint64_t)pdp - manager->offset;
@@ -24,14 +25,15 @@ bool page_table_map(page_table_manager_t* manager, void* virt, void* phys) {
         manager->pml4->entries[indexer.pdp] = pde;
     } else {
         uint64_t pdp_phys = page_direntry_get_address(&pde) << 12;
-        pdp = (page_table_t*)(pdp_phys + manager->offset);
+        pdp = (page_table_t *)(pdp_phys + manager->offset);
     }
 
     pde = pdp->entries[indexer.pd];
-    page_table_t* pd;
+    page_table_t *pd;
     if (!page_direntry_get_flag(&pde, PAGE_PRESENT)) {
-        pd = (page_table_t*)pfallocator_request_page();
-        if (pd == NULL) return false;
+        pd = (page_table_t *)pfallocator_request_page();
+        if (pd == NULL)
+            return false;
         memset(pd, 0, PAGE_SIZE);
 
         uint64_t pd_phys = (uint64_t)pd - manager->offset;
@@ -42,14 +44,15 @@ bool page_table_map(page_table_manager_t* manager, void* virt, void* phys) {
         pdp->entries[indexer.pd] = pde;
     } else {
         uint64_t pd_phys = page_direntry_get_address(&pde) << 12;
-        pd = (page_table_t*)(pd_phys + manager->offset);
+        pd = (page_table_t *)(pd_phys + manager->offset);
     }
 
     pde = pd->entries[indexer.pt];
-    page_table_t* pt;
+    page_table_t *pt;
     if (!page_direntry_get_flag(&pde, PAGE_PRESENT)) {
-        pt = (page_table_t*)pfallocator_request_page();
-        if (pt == NULL) return false;
+        pt = (page_table_t *)pfallocator_request_page();
+        if (pt == NULL)
+            return false;
         memset(pt, 0, PAGE_SIZE);
 
         uint64_t pt_phys = (uint64_t)pt - manager->offset;
@@ -60,7 +63,7 @@ bool page_table_map(page_table_manager_t* manager, void* virt, void* phys) {
         pd->entries[indexer.pt] = pde;
     } else {
         uint64_t pt_phys = page_direntry_get_address(&pde) << 12;
-        pt = (page_table_t*)(pt_phys + manager->offset);
+        pt = (page_table_t *)(pt_phys + manager->offset);
     }
 
     pde.value = 0;

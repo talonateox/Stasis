@@ -5,32 +5,32 @@
 #include "../paging/paging.h"
 #include "page_frame_alloc.h"
 
-void* heap_start;
-void* heap_end;
-heap_segment_hdr_t* last_hdr;
+void *heap_start;
+void *heap_end;
+heap_segment_hdr_t *last_hdr;
 size_t heap_offset;
 
 static spinlock_t heap_lock = {0};
 
-void heap_init(void* base, size_t page_count, size_t offset) {
+void heap_init(void *base, size_t page_count, size_t offset) {
     printkf_info("Initializing heap at %p...\n", base);
-    void* pos = base;
+    void *pos = base;
 
     heap_offset = offset;
 
     for (size_t i = 0; i < page_count; i++) {
-        void* virt_page = pfallocator_request_page();
-        void* phys_page = (void*)((uint64_t)virt_page - offset);
+        void *virt_page = pfallocator_request_page();
+        void *phys_page = (void *)((uint64_t)virt_page - offset);
         page_map_memory(pos, phys_page);
-        pos = (void*)((size_t)pos + PAGE_SIZE);
+        pos = (void *)((size_t)pos + PAGE_SIZE);
     }
 
     size_t heap_length = page_count * PAGE_SIZE;
 
     heap_start = base;
-    heap_end = (void*)((size_t)heap_start + heap_length);
+    heap_end = (void *)((size_t)heap_start + heap_length);
 
-    heap_segment_hdr_t* start_segment = (heap_segment_hdr_t*)base;
+    heap_segment_hdr_t *start_segment = (heap_segment_hdr_t *)base;
     start_segment->length = heap_length - sizeof(heap_segment_hdr_t);
     start_segment->next = NULL;
     start_segment->last = NULL;
@@ -46,16 +46,16 @@ void heap_expand(size_t size) {
     }
 
     size_t page_count = size / PAGE_SIZE;
-    heap_segment_hdr_t* new_seg = (heap_segment_hdr_t*)heap_end;
+    heap_segment_hdr_t *new_seg = (heap_segment_hdr_t *)heap_end;
 
     for (size_t i = 0; i < page_count; i++) {
-        void* page = pfallocator_request_page();
+        void *page = pfallocator_request_page();
         if (page == NULL) {
             panic("HEAP: OUT OF MEMORY");
         }
-        void* phys_page = (void*)((uint64_t)page - heap_offset);
+        void *phys_page = (void *)((uint64_t)page - heap_offset);
         page_map_memory(heap_end, phys_page);
-        heap_end = (void*)((size_t)heap_end + PAGE_SIZE);
+        heap_end = (void *)((size_t)heap_end + PAGE_SIZE);
     }
 
     new_seg->free = true;
@@ -67,17 +67,18 @@ void heap_expand(size_t size) {
     heap_segment_combine_backward(new_seg);
 }
 
-void* malloc(size_t size) {
+void *malloc(size_t size) {
     if (size % 0x10 > 0) {
         size -= (size % 0x10);
         size += 0x10;
     }
 
-    if (size == 0) return NULL;
+    if (size == 0)
+        return NULL;
 
     uint64_t flags = spin_lock(&heap_lock);
 
-    heap_segment_hdr_t* curr = (heap_segment_hdr_t*)heap_start;
+    heap_segment_hdr_t *curr = (heap_segment_hdr_t *)heap_start;
     while (true) {
         if (curr->free) {
             if (curr->length >= size) {
@@ -86,10 +87,11 @@ void* malloc(size_t size) {
                 }
                 curr->free = false;
                 spin_unlock(&heap_lock, flags);
-                return (void*)((uint64_t)curr + sizeof(heap_segment_hdr_t));
+                return (void *)((uint64_t)curr + sizeof(heap_segment_hdr_t));
             }
         }
-        if (curr->next == NULL) break;
+        if (curr->next == NULL)
+            break;
         curr = curr->next;
     }
     heap_expand(size);
@@ -97,13 +99,13 @@ void* malloc(size_t size) {
     return malloc(size);
 }
 
-void free(void* address) {
-    if (address == NULL) return;
+void free(void *address) {
+    if (address == NULL)
+        return;
 
     uint64_t flags = spin_lock(&heap_lock);
 
-    heap_segment_hdr_t* seg =
-        (heap_segment_hdr_t*)((uint64_t)address - sizeof(heap_segment_hdr_t));
+    heap_segment_hdr_t *seg = (heap_segment_hdr_t *)((uint64_t)address - sizeof(heap_segment_hdr_t));
 
     if (seg->free) {
         printkf_error("free(): double free detected at %p\n", address);
@@ -118,31 +120,35 @@ void free(void* address) {
     spin_unlock(&heap_lock, flags);
 }
 
-void heap_segment_combine_forward(heap_segment_hdr_t* hdr) {
-    if (hdr->next == NULL) return;
-    if (!hdr->next->free) return;
+void heap_segment_combine_forward(heap_segment_hdr_t *hdr) {
+    if (hdr->next == NULL)
+        return;
+    if (!hdr->next->free)
+        return;
 
-    if (hdr->next == last_hdr) last_hdr = hdr;
-    if (hdr->next->next != NULL) hdr->next->next->last = hdr;
+    if (hdr->next == last_hdr)
+        last_hdr = hdr;
+    if (hdr->next->next != NULL)
+        hdr->next->next->last = hdr;
 
     hdr->length = hdr->length + hdr->next->length + sizeof(heap_segment_hdr_t);
     hdr->next = hdr->next->next;
 }
 
-void heap_segment_combine_backward(heap_segment_hdr_t* hdr) {
+void heap_segment_combine_backward(heap_segment_hdr_t *hdr) {
     if (hdr->last != NULL && hdr->last->free)
         heap_segment_combine_forward(hdr->last);
 }
 
-heap_segment_hdr_t* heap_segment_split(heap_segment_hdr_t* hdr, size_t length) {
-    if (length < 0x10) return NULL;
+heap_segment_hdr_t *heap_segment_split(heap_segment_hdr_t *hdr, size_t length) {
+    if (length < 0x10)
+        return NULL;
 
     size_t split_length = hdr->length - length - sizeof(heap_segment_hdr_t);
-    if (split_length < 0x10) return NULL;
+    if (split_length < 0x10)
+        return NULL;
 
-    heap_segment_hdr_t* new_seg =
-        (heap_segment_hdr_t*)((uint64_t)hdr + sizeof(heap_segment_hdr_t) +
-                              length);
+    heap_segment_hdr_t *new_seg = (heap_segment_hdr_t *)((uint64_t)hdr + sizeof(heap_segment_hdr_t) + length);
 
     new_seg->length = split_length;
     new_seg->free = hdr->free;
@@ -155,7 +161,8 @@ heap_segment_hdr_t* heap_segment_split(heap_segment_hdr_t* hdr, size_t length) {
     hdr->next = new_seg;
     hdr->length = length;
 
-    if (last_hdr == hdr) last_hdr = new_seg;
+    if (last_hdr == hdr)
+        last_hdr = new_seg;
 
     return new_seg;
 }

@@ -10,7 +10,7 @@ terminal_t _g_term;
 
 static spinlock_t terminal_lock = {0};
 
-void terminal_init(struct limine_framebuffer* fb) {
+void terminal_init(struct limine_framebuffer *fb) {
     _g_term = (terminal_t){0};
 
     _g_term.fg = 0xffffff;
@@ -25,20 +25,19 @@ void terminal_init(struct limine_framebuffer* fb) {
     _g_term.max_y = fb->height / (FONT_GLYPH_HEIGHT * _g_term.scale);
 }
 
-static void draw_pixel(terminal_t* term, size_t x, size_t y, uint32_t color) {
+static void draw_pixel(terminal_t *term, size_t x, size_t y, uint32_t color) {
     if (x >= term->fb->width || y >= term->fb->height) {
         return;
     }
 
-    uint8_t* fb_addr = term->fb->address;
+    uint8_t *fb_addr = term->fb->address;
     size_t offset = (y * term->fb->pitch) + (x * 4);
 
-    *(uint32_t*)(fb_addr + offset) = color;
+    *(uint32_t *)(fb_addr + offset) = color;
 }
 
-static void draw_char_at(terminal_t* term, char c, size_t x, size_t y,
-                         uint32_t color) {
-    char* glyph = &term->font[c * FONT_GLYPH_HEIGHT];
+static void draw_char_at(terminal_t *term, char c, size_t x, size_t y, uint32_t color) {
+    char *glyph = &term->font[c * FONT_GLYPH_HEIGHT];
     size_t start_x = x * FONT_GLYPH_WIDTH * term->scale;
     size_t start_y = y * FONT_GLYPH_HEIGHT * term->scale;
 
@@ -49,8 +48,7 @@ static void draw_char_at(terminal_t* term, char c, size_t x, size_t y,
                 size_t pix_x_offs = FONT_GLYPH_WIDTH - 1 - cx;
                 for (size_t sy = 0; sy < term->scale; sy++) {
                     for (size_t sx = 0; sx < term->scale; sx++) {
-                        size_t target_x =
-                            start_x + (pix_x_offs * term->scale) + sx;
+                        size_t target_x = start_x + (pix_x_offs * term->scale) + sx;
                         size_t target_y = start_y + (cy * term->scale) + sy;
                         draw_pixel(term, target_x, target_y, color);
                     }
@@ -60,7 +58,7 @@ static void draw_char_at(terminal_t* term, char c, size_t x, size_t y,
     }
 }
 
-static void clear_char_at(terminal_t* term, size_t x, size_t y) {
+static void clear_char_at(terminal_t *term, size_t x, size_t y) {
     size_t start_x = x * FONT_GLYPH_WIDTH * term->scale;
     size_t start_y = y * FONT_GLYPH_HEIGHT * term->scale;
 
@@ -71,7 +69,7 @@ static void clear_char_at(terminal_t* term, size_t x, size_t y) {
     }
 }
 
-void scroll_terminal(terminal_t* term) {
+void scroll_terminal(terminal_t *term) {
     size_t line_height = FONT_GLYPH_HEIGHT * term->scale;
     size_t scroll_bytes = line_height * term->fb->pitch;
     size_t move_bytes = (term->fb->height * term->fb->pitch) - scroll_bytes;
@@ -79,9 +77,13 @@ void scroll_terminal(terminal_t* term) {
     memset(term->fb->address + move_bytes, 0, scroll_bytes);
 }
 
-void terminal_set_fg(uint32_t color) { _g_term.fg = color; }
+void terminal_set_fg(uint32_t color) {
+    _g_term.fg = color;
+}
 
-void terminal_set_bg(uint32_t color) { _g_term.bg = color; }
+void terminal_set_bg(uint32_t color) {
+    _g_term.bg = color;
+}
 
 int putkc(char c) {
     if (c == '\n') {
@@ -126,7 +128,7 @@ int putkc(char c) {
     return 0;
 }
 
-int putks(const char* s) {
+int putks(const char *s) {
     int ret = 0;
     while (*s) {
         ret |= putkc(*s++);
@@ -136,7 +138,7 @@ int putks(const char* s) {
 
 static void print_uint(unsigned long long value, int base) {
     char buffer[32];
-    const char* digits = "0123456789abcdef";
+    const char *digits = "0123456789abcdef";
 
     int i = 0;
     if (value == 0) {
@@ -155,7 +157,8 @@ static void print_uint(unsigned long long value, int base) {
 }
 
 static int count_digits(unsigned long long v, int base) {
-    if (v == 0) return 1;
+    if (v == 0)
+        return 1;
     int count = 0;
     while (v) {
         v /= base;
@@ -164,8 +167,7 @@ static int count_digits(unsigned long long v, int base) {
     return count;
 }
 
-void print_uint_padded(unsigned long long v, int base, int width,
-                       char pad_char) {
+void print_uint_padded(unsigned long long v, int base, int width, char pad_char) {
     int digits = count_digits(v, base);
     for (int i = digits; i < width; i++) {
         putkc(pad_char);
@@ -197,12 +199,13 @@ void print_int_padded(long long v, int width, char pad_char) {
         for (int i = total; i < width; i++) {
             putkc(pad_char);
         }
-        if (is_negative) putkc('-');
+        if (is_negative)
+            putkc('-');
         print_uint(uv, 10);
     }
 }
 
-void vprintkf(const char* fmt, va_list args) {
+void vprintkf(const char *fmt, va_list args) {
     for (; *fmt; fmt++) {
         if (*fmt != '%') {
             putkc(*fmt);
@@ -223,86 +226,88 @@ void vprintkf(const char* fmt, va_list args) {
         }
 
         switch (*fmt) {
-            case '%':
-                putkc('%');
-                break;
-            case 'c': {
-                char c = (char)va_arg(args, int);
-                putkc(c);
-                break;
-            }
-            case 's': {
-                const char* s = va_arg(args, const char*);
-                int len = 0;
-                for (const char* p = s; *p; p++) len++;
-                for (int i = len; i < width; i++) putkc(pad_char);
-                putks(s);
-                break;
-            }
-            case 'd':
-            case 'i': {
-                int v = va_arg(args, int);
+        case '%':
+            putkc('%');
+            break;
+        case 'c': {
+            char c = (char)va_arg(args, int);
+            putkc(c);
+            break;
+        }
+        case 's': {
+            const char *s = va_arg(args, const char *);
+            int len = 0;
+            for (const char *p = s; *p; p++)
+                len++;
+            for (int i = len; i < width; i++)
+                putkc(pad_char);
+            putks(s);
+            break;
+        }
+        case 'd':
+        case 'i': {
+            int v = va_arg(args, int);
+            print_int_padded(v, width, pad_char);
+            break;
+        }
+        case 'u': {
+            unsigned int v = va_arg(args, unsigned int);
+            print_uint_padded(v, 10, width, pad_char);
+            break;
+        }
+        case 'k': {
+            unsigned int v = va_arg(args, unsigned int);
+            terminal_set_fg(v);
+            break;
+        }
+        case 'r':
+            terminal_set_fg(0xffffff);
+            break;
+        case 'x':
+        case 'X': {
+            unsigned int v = va_arg(args, unsigned int);
+            print_uint_padded(v, 16, width, pad_char);
+            break;
+        }
+        case 'p': {
+            unsigned long v = (unsigned long)va_arg(args, void *);
+            putks("0x");
+            print_uint_padded(v, 16, width ? width : 16, '0');
+            break;
+        }
+        case 'l':
+            fmt++;
+            if (*fmt == 'd') {
+                long v = va_arg(args, long);
                 print_int_padded(v, width, pad_char);
-                break;
-            }
-            case 'u': {
-                unsigned int v = va_arg(args, unsigned int);
+            } else if (*fmt == 'u') {
+                unsigned long v = va_arg(args, unsigned long);
                 print_uint_padded(v, 10, width, pad_char);
-                break;
-            }
-            case 'k': {
-                unsigned int v = va_arg(args, unsigned int);
-                terminal_set_fg(v);
-                break;
-            }
-            case 'r':
-                terminal_set_fg(0xffffff);
-                break;
-            case 'x':
-            case 'X': {
-                unsigned int v = va_arg(args, unsigned int);
+            } else if (*fmt == 'x' || *fmt == 'X') {
+                unsigned long v = va_arg(args, unsigned long);
                 print_uint_padded(v, 16, width, pad_char);
-                break;
-            }
-            case 'p': {
-                unsigned long v = (unsigned long)va_arg(args, void*);
-                putks("0x");
-                print_uint_padded(v, 16, width ? width : 16, '0');
-                break;
-            }
-            case 'l':
+            } else if (*fmt == 'l') {
                 fmt++;
                 if (*fmt == 'd') {
-                    long v = va_arg(args, long);
+                    long long v = va_arg(args, long long);
                     print_int_padded(v, width, pad_char);
                 } else if (*fmt == 'u') {
-                    unsigned long v = va_arg(args, unsigned long);
+                    unsigned long long v = va_arg(args, unsigned long long);
                     print_uint_padded(v, 10, width, pad_char);
                 } else if (*fmt == 'x' || *fmt == 'X') {
-                    unsigned long v = va_arg(args, unsigned long);
+                    unsigned long long v = va_arg(args, unsigned long long);
                     print_uint_padded(v, 16, width, pad_char);
-                } else if (*fmt == 'l') {
-                    fmt++;
-                    if (*fmt == 'd') {
-                        long long v = va_arg(args, long long);
-                        print_int_padded(v, width, pad_char);
-                    } else if (*fmt == 'u') {
-                        unsigned long long v = va_arg(args, unsigned long long);
-                        print_uint_padded(v, 10, width, pad_char);
-                    } else if (*fmt == 'x' || *fmt == 'X') {
-                        unsigned long long v = va_arg(args, unsigned long long);
-                        print_uint_padded(v, 16, width, pad_char);
-                    }
                 }
-                break;
-            default:
-                putkc('%');
-                putkc(*fmt);
+            }
+            break;
+        default:
+            putkc('%');
+            putkc(*fmt);
         }
     }
 }
 
-void printkf(const char* fmt, ...) {
+void printkf(const char *fmt, ...) {
     uint64_t flags = spin_lock(&terminal_lock);
     va_list args;
     va_start(args, fmt);
@@ -318,7 +323,7 @@ void terminal_clear() {
     _g_term.y = 1;
 }
 
-void panic(const char* fmt, ...) {
+void panic(const char *fmt, ...) {
     terminal_set_fg(0xff0000);
     putks("\n-------------------------------------\n");
     putks("        KERNEL PANIC\n");
@@ -335,8 +340,7 @@ void panic(const char* fmt, ...) {
     }
 }
 
-void panic_with_frame(struct interrupt_frame* frame, uint64_t error_code,
-                      const char* msg) {
+void panic_with_frame(struct interrupt_frame *frame, uint64_t error_code, const char *msg) {
     terminal_set_fg(0xff0000);
     putks("\n-------------------------------------\n");
     putks("        KERNEL PANIC\n");
@@ -365,17 +369,12 @@ void panic_with_frame(struct interrupt_frame* frame, uint64_t error_code,
     putks("\n");
 
     printkf("RFLAGS: 0x%016llx\n", frame->rflags);
-    printkf(
-        "  CF=%d PF=%d AF=%d ZF=%d SF=%d TF=%d IF=%d DF=%d OF=%d\n",
-        (frame->rflags & (1 << 0)) ? 1 : 0, (frame->rflags & (1 << 2)) ? 1 : 0,
-        (frame->rflags & (1 << 4)) ? 1 : 0, (frame->rflags & (1 << 6)) ? 1 : 0,
-        (frame->rflags & (1 << 7)) ? 1 : 0, (frame->rflags & (1 << 8)) ? 1 : 0,
-        (frame->rflags & (1 << 9)) ? 1 : 0, (frame->rflags & (1 << 10)) ? 1 : 0,
-        (frame->rflags & (1 << 11)) ? 1 : 0);
-    printkf("  IOPL=%d NT=%d RF=%d VM=%d\n", (frame->rflags >> 12) & 3,
-            (frame->rflags & (1 << 14)) ? 1 : 0,
-            (frame->rflags & (1 << 16)) ? 1 : 0,
-            (frame->rflags & (1 << 17)) ? 1 : 0);
+    printkf("  CF=%d PF=%d AF=%d ZF=%d SF=%d TF=%d IF=%d DF=%d OF=%d\n", (frame->rflags & (1 << 0)) ? 1 : 0,
+            (frame->rflags & (1 << 2)) ? 1 : 0, (frame->rflags & (1 << 4)) ? 1 : 0, (frame->rflags & (1 << 6)) ? 1 : 0,
+            (frame->rflags & (1 << 7)) ? 1 : 0, (frame->rflags & (1 << 8)) ? 1 : 0, (frame->rflags & (1 << 9)) ? 1 : 0,
+            (frame->rflags & (1 << 10)) ? 1 : 0, (frame->rflags & (1 << 11)) ? 1 : 0);
+    printkf("  IOPL=%d NT=%d RF=%d VM=%d\n", (frame->rflags >> 12) & 3, (frame->rflags & (1 << 14)) ? 1 : 0,
+            (frame->rflags & (1 << 16)) ? 1 : 0, (frame->rflags & (1 << 17)) ? 1 : 0);
     putks("\n");
 
     uint64_t cr0, cr2, cr3, cr4;
@@ -396,7 +395,7 @@ void panic_with_frame(struct interrupt_frame* frame, uint64_t error_code,
     terminal_set_fg(0xff00ff);
     putks("TRACE:\n");
     terminal_set_fg(0xffffff);
-    uint64_t* stack = (uint64_t*)frame->rsp;
+    uint64_t *stack = (uint64_t *)frame->rsp;
     for (int i = 0; i < 8; i++) {
         printkf("  [RSP+0x%02x]: 0x%016llx\n", i * 8, stack[i]);
     }
@@ -406,10 +405,11 @@ void panic_with_frame(struct interrupt_frame* frame, uint64_t error_code,
     putks("SYSTEM HALTED");
     terminal_set_fg(0xffffff);
 
-    for (;;) __asm__("hlt");
+    for (;;)
+        __asm__("hlt");
 }
 
-void printkf_info(const char* fmt, ...) {
+void printkf_info(const char *fmt, ...) {
     uint64_t flags = spin_lock(&terminal_lock);
 
     terminal_set_fg(0x00aaff);
@@ -424,7 +424,7 @@ void printkf_info(const char* fmt, ...) {
     spin_unlock(&terminal_lock, flags);
 }
 
-void printkf_ok(const char* fmt, ...) {
+void printkf_ok(const char *fmt, ...) {
     uint64_t flags = spin_lock(&terminal_lock);
 
     terminal_set_fg(0xaaffaa);
@@ -439,7 +439,7 @@ void printkf_ok(const char* fmt, ...) {
     spin_unlock(&terminal_lock, flags);
 }
 
-void printkf_warn(const char* fmt, ...) {
+void printkf_warn(const char *fmt, ...) {
     uint64_t flags = spin_lock(&terminal_lock);
 
     terminal_set_fg(0xffaa00);
@@ -454,7 +454,7 @@ void printkf_warn(const char* fmt, ...) {
     spin_unlock(&terminal_lock, flags);
 }
 
-void printkf_error(const char* fmt, ...) {
+void printkf_error(const char *fmt, ...) {
     uint64_t flags = spin_lock(&terminal_lock);
     terminal_set_fg(0xff0000);
     putks("[ERR ] ");

@@ -7,8 +7,8 @@
 #include "../sync/spinlock.h"
 #include "task.h"
 
-static task_t* ready_queue_head = NULL;
-static task_t* ready_queue_tail = NULL;
+static task_t *ready_queue_head = NULL;
+static task_t *ready_queue_tail = NULL;
 static int scheduler_enabled = 0;
 
 static spinlock_t scheduler_lock = {0};
@@ -21,7 +21,7 @@ void scheduler_init() {
     scheduler_enabled = 0;
 }
 
-void scheduler_add_task(task_t* task) {
+void scheduler_add_task(task_t *task) {
     if (task == NULL) {
         return;
     }
@@ -41,7 +41,7 @@ void scheduler_add_task(task_t* task) {
     spin_unlock(&scheduler_lock, flags);
 }
 
-void scheduler_remove_task(task_t* task) {
+void scheduler_remove_task(task_t *task) {
     if (task == NULL || ready_queue_head == NULL) {
         return;
     }
@@ -53,8 +53,8 @@ void scheduler_remove_task(task_t* task) {
         return;
     }
 
-    task_t* prev = NULL;
-    task_t* curr = ready_queue_head;
+    task_t *prev = NULL;
+    task_t *curr = ready_queue_head;
 
     while (curr != NULL) {
         if (curr == task) {
@@ -80,7 +80,7 @@ void scheduler_remove_task(task_t* task) {
 
 static void wake_sleeping_tasks() {
     uint64_t current_tick = timer_get_ticks();
-    task_t* task = ready_queue_head;
+    task_t *task = ready_queue_head;
 
     while (task != NULL) {
         if (task->state == TASK_BLOCKED && task->wake_tick != 0) {
@@ -101,11 +101,11 @@ void scheduler_schedule() {
 restart:;
     uint64_t flags = spin_lock(&scheduler_lock);
 
-    task_t* current = task_current();
-    task_t* next = NULL;
+    task_t *current = task_current();
+    task_t *next = NULL;
 
     uint64_t current_tick = timer_get_ticks();
-    for (task_t* t = ready_queue_head; t != NULL; t = t->next) {
+    for (task_t *t = ready_queue_head; t != NULL; t = t->next) {
         if (t->state == TASK_BLOCKED && t->wake_tick != 0) {
             if (current_tick >= t->wake_tick) {
                 t->state = TASK_READY;
@@ -114,18 +114,18 @@ restart:;
         }
     }
 
-    task_t* start;
+    task_t *start;
     if (current != NULL && current->next != NULL) {
         start = current->next;
     } else {
         start = ready_queue_head;
     }
 
-    task_t* candidate = start;
+    task_t *candidate = start;
     int checked = 0;
     int total_tasks = 0;
 
-    for (task_t* t = ready_queue_head; t != NULL; t = t->next) {
+    for (task_t *t = ready_queue_head; t != NULL; t = t->next) {
         total_tasks++;
     }
 
@@ -168,9 +168,13 @@ void scheduler_enable() {
     printkf_ok("Scheduler enabled\n");
 }
 
-void scheduler_disable() { scheduler_enabled = 0; }
+void scheduler_disable() {
+    scheduler_enabled = 0;
+}
 
-int scheduler_is_enabled() { return scheduler_enabled; }
+int scheduler_is_enabled() {
+    return scheduler_enabled;
+}
 
 void scheduler_tick() {
     if (!scheduler_enabled) {
@@ -181,38 +185,39 @@ void scheduler_tick() {
     wake_sleeping_tasks();
     spin_unlock(&scheduler_lock, flags);
 
-    if (in_syscall) return;
+    if (in_syscall)
+        return;
 
     scheduler_schedule();
 }
 
 void scheduler_print_tasks() {
     uint64_t flags = spin_lock(&scheduler_lock);
-    task_t* cur = ready_queue_head;
+    task_t *cur = ready_queue_head;
     if (cur == NULL) {
         spin_unlock(&scheduler_lock, flags);
         return;
     }
 
     while (cur) {
-        const char* state = "UNKNOWN";
+        const char *state = "UNKNOWN";
         switch (cur->state) {
-            case TASK_READY:
-                state = "READY";
-                break;
-            case TASK_RUNNING:
-                state = "RUNNING";
-                break;
-            case TASK_BLOCKED:
-                state = "BLOCKED";
-                break;
-            case TASK_TERMINATED:
-                state = "TERMINATED";
-                break;
+        case TASK_READY:
+            state = "READY";
+            break;
+        case TASK_RUNNING:
+            state = "RUNNING";
+            break;
+        case TASK_BLOCKED:
+            state = "BLOCKED";
+            break;
+        case TASK_TERMINATED:
+            state = "TERMINATED";
+            break;
         }
 
-        printkf("%d: task=%p state=%s stack=%llu entry=%p\n", cur->pid,
-                (void*)cur, state, cur->stack_size, (void*)cur->entry_point);
+        printkf("%d: task=%p state=%s stack=%llu entry=%p\n", cur->pid, (void *)cur, state, cur->stack_size,
+                (void *)cur->entry_point);
 
         cur = cur->next;
     }
