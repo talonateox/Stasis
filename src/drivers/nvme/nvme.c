@@ -354,7 +354,6 @@ static int nvme_probe(pci_device_t *pdev) {
     }
 
     nvme_register_device(ctrl);
-
     return 0;
 }
 

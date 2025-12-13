@@ -799,7 +799,6 @@ static vfs_ops_t fat32_vfs_ops = {
 };
 
 static void fat32_populate_vfs_dir(fat32_fs_t *fs, vfs_node_t *vfs_dir, uint32_t cluster) {
-
     fat32_dir_entry_t *entries;
     int count;
 

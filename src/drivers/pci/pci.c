@@ -9,6 +9,9 @@
 static int pci_bus_match(device_t *dev, driver_t *drv);
 static int pci_bus_probe(device_t *dev);
 
+#define PCI_MMIO_BASE 0xFFFF800100000000ULL
+static uint64_t next_mmio_addr = PCI_MMIO_BASE;
+
 bus_type_t pci_bus_type = {
     .name = "pci",
     .match = pci_bus_match,
@@ -197,14 +200,15 @@ void *pci_map_bar(pci_device_t *dev, uint8_t bar_num) {
 
     uint64_t addr = bar & ~0xF;
 
-    if ((bar & 0x6) == 0x4) {
-        uint32_t bar_high = pci_read_config_dword(dev, 0x10 + ((bar_num + 1) * 4));
-        addr |= ((uint64_t)bar_high << 32);
-    }
+    uint64_t virt = next_mmio_addr;
 
     for (int i = 0; i < 8; i++) {
-        page_map_memory((void *)(addr + i * 0x1000), (void *)(addr + i * 0x1000));
+        page_map_memory((void *)(virt + i * 0x1000), (void *)(addr + i * 0x1000));
     }
+
+    next_mmio_addr += 8 * 0x1000;
+
+    return (void *)virt;
 
     return (void *)addr;
 }
