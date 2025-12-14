@@ -8,3 +8,4 @@ typedef struct {
 } page_table_manager_t;
 
 bool page_table_map(page_table_manager_t *manager, void *virt, void *phys);
+bool page_table_map_mmio(page_table_manager_t *manager, void *virt, void *phys);

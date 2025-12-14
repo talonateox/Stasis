@@ -213,7 +213,7 @@ void *pci_map_bar(pci_device_t *dev, uint8_t bar_num) {
     uint64_t virt = next_mmio_addr;
 
     for (int i = 0; i < 8; i++) {
-        page_map_memory((void *)(virt + i * 0x1000), (void *)(addr + i * 0x1000));
+        page_map_mmio((void *)(virt + i * 0x1000), (void *)(addr + i * 0x1000));
     }
 
     next_mmio_addr += 8 * 0x1000;

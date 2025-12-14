@@ -79,6 +79,10 @@ void page_map_memory(void *virt, void *phys) {
     page_table_map(&_g_page_table_manager, virt, phys);
 }
 
+void page_map_mmio(void *virt, void *phys) {
+    page_table_map_mmio(&_g_page_table_manager, virt, phys);
+}
+
 void page_map_memory_to(page_table_t *pml4, void *virt, void *phys) {
     page_table_manager_t temp = {pml4, _g_page_table_manager.offset};
     page_table_map(&temp, virt, phys);

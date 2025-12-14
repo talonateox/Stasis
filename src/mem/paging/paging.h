@@ -35,6 +35,7 @@ page_table_t *page_table_clone_for_user();
 void page_table_destroy_user(page_table_t *pml4);
 
 void page_map_memory(void *virt, void *phys);
+void page_map_mmio(void *virt, void *phys);
 void page_map_memory_to(page_table_t *pml4, void *virt, void *phys);
 
 size_t page_get_offset();
