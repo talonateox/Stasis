@@ -18,49 +18,52 @@ static int64_t nvme_dev_read(vfs_node_t *node, void *buf, size_t size, size_t of
     if (!ctrl)
         return -1;
 
-    uint64_t lba = offset / ctrl->block_size;
-    size_t byte_offset = offset % ctrl->block_size;
+    uint64_t start_lba = offset / ctrl->block_size;
+    size_t start_offset = offset % ctrl->block_size;
 
-    if (byte_offset != 0) {
-        printkf_error("nvme_dev_read(): Unaligned read not supported yet\n");
-        return -1;
-    }
+    uint64_t end_byte = offset + size;
+    uint64_t end_lba = (end_byte + ctrl->block_size - 1) / ctrl->block_size;
 
-    if (size % ctrl->block_size != 0) {
-        printkf_error("nvme_dev_read(): Size must be multiple of block size\n");
-        return -1;
-    }
-
-    uint16_t num_blocks = size / ctrl->block_size;
-
-    if (lba + num_blocks > ctrl->num_blocks) {
+    if (end_lba > ctrl->num_blocks) {
         printkf_error("nvme_dev_read(): Read beyond device bounds\n");
         return -1;
     }
 
     void *dma_buffer = ctrl->dma_buffer;
+    size_t bytes_copied = 0;
+    uint64_t current_lba = start_lba;
 
-    size_t bytes_read = 0;
-    size_t blocks_read = 0;
-
-    while (blocks_read < num_blocks) {
-        uint16_t chunk = (num_blocks - blocks_read) > 8 ? 8 : (num_blocks - blocks_read);
+    while (current_lba < end_lba) {
+        uint64_t blocks_remaining = end_lba - current_lba;
+        uint16_t chunk = blocks_remaining > 8 ? 8 : (uint16_t)blocks_remaining;
 
         memset(dma_buffer, 0, 4096);
 
-        if (nvme_read(ctrl, lba + blocks_read, chunk, dma_buffer) < 0) {
-            printkf_error("nvme_dev_read(): NVMe read failed at block %llu\n", lba + blocks_read);
-            return bytes_read;
+        if (nvme_read(ctrl, current_lba, chunk, dma_buffer) < 0) {
+            printkf_error("nvme_dev_read(): NVMe read failed at block %llu\n", current_lba);
+            return bytes_copied > 0 ? (int64_t)bytes_copied : -1;
         }
 
-        size_t chunk_bytes = chunk * ctrl->block_size;
-        memcpy((uint8_t *)buf + bytes_read, dma_buffer, chunk_bytes);
+        size_t chunk_start = 0;
+        size_t chunk_end = chunk * ctrl->block_size;
 
-        bytes_read += chunk_bytes;
-        blocks_read += chunk;
+        if (current_lba == start_lba) {
+            chunk_start = start_offset;
+        }
+
+        size_t bytes_from_start = (current_lba - start_lba) * ctrl->block_size;
+        if (bytes_from_start + chunk_end > size + start_offset) {
+            chunk_end = size + start_offset - bytes_from_start;
+        }
+
+        size_t copy_size = chunk_end - chunk_start;
+        memcpy((uint8_t *)buf + bytes_copied, (uint8_t *)dma_buffer + chunk_start, copy_size);
+
+        bytes_copied += copy_size;
+        current_lba += chunk;
     }
 
-    return bytes_read;
+    return bytes_copied;
 }
 
 static int64_t nvme_dev_write(vfs_node_t *node, const void *buf, size_t size, size_t offset) {
@@ -68,45 +71,57 @@ static int64_t nvme_dev_write(vfs_node_t *node, const void *buf, size_t size, si
     if (!ctrl)
         return -1;
 
-    uint64_t lba = offset / ctrl->block_size;
-    size_t byte_offset = offset % ctrl->block_size;
+    uint64_t start_lba = offset / ctrl->block_size;
+    size_t start_offset = offset % ctrl->block_size;
 
-    if (byte_offset != 0) {
-        printkf_error("nvme_dev_write(): Unaligned write not supported yet\n");
-        return -1;
-    }
+    uint64_t end_byte = offset + size;
+    uint64_t end_lba = (end_byte + ctrl->block_size - 1) / ctrl->block_size;
 
-    if (size % ctrl->block_size != 0) {
-        printkf_error("nvme_dev_write(): Size must be multiple of block size\n");
-        return -1;
-    }
-
-    uint16_t num_blocks = size / ctrl->block_size;
-
-    if (lba + num_blocks > ctrl->num_blocks) {
+    if (end_lba > ctrl->num_blocks) {
         printkf_error("nvme_dev_write(): Write beyond device bounds\n");
         return -1;
     }
 
     void *dma_buffer = ctrl->dma_buffer;
-
     size_t bytes_written = 0;
-    size_t blocks_written = 0;
+    uint64_t current_lba = start_lba;
 
-    while (blocks_written < num_blocks) {
-        uint16_t chunk = (num_blocks - blocks_written) > 8 ? 8 : (num_blocks - blocks_written);
-
+    while (current_lba < end_lba) {
+        uint64_t blocks_remaining = end_lba - current_lba;
+        uint16_t chunk = blocks_remaining > 8 ? 8 : (uint16_t)blocks_remaining;
         size_t chunk_bytes = chunk * ctrl->block_size;
-        memcpy(dma_buffer, (uint8_t *)buf + bytes_written, chunk_bytes);
 
-        if (nvme_write(ctrl, lba + blocks_written, chunk, dma_buffer) < 0) {
-            printkf_error("nvme_dev_write(): NVMe write failed at block %llu\n", lba + blocks_written);
-            return bytes_written;
+        size_t write_start = 0;
+        size_t write_end = chunk_bytes;
+
+        if (current_lba == start_lba) {
+            write_start = start_offset;
         }
 
-        bytes_written += chunk_bytes;
-        blocks_written += chunk;
+        size_t bytes_from_start = (current_lba - start_lba) * ctrl->block_size;
+        if (bytes_from_start + write_end > size + start_offset) {
+            write_end = size + start_offset - bytes_from_start;
+        }
+
+        if (write_start != 0 || write_end != chunk_bytes) {
+            if (nvme_read(ctrl, current_lba, chunk, dma_buffer) < 0) {
+                printkf_error("nvme_dev_write(): Read-modify-write read failed\n");
+                return bytes_written > 0 ? (int64_t)bytes_written : -1;
+            }
+        }
+
+        size_t copy_size = write_end - write_start;
+        memcpy((uint8_t *)dma_buffer + write_start, (uint8_t *)buf + bytes_written, copy_size);
+
+        if (nvme_write(ctrl, current_lba, chunk, dma_buffer) < 0) {
+            printkf_error("nvme_dev_write(): NVMe write failed at block %llu\n", current_lba);
+            return bytes_written > 0 ? (int64_t)bytes_written : -1;
+        }
+
+        bytes_written += copy_size;
+        current_lba += chunk;
     }
+
     return bytes_written;
 }
 

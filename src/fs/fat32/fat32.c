@@ -60,13 +60,19 @@ static void fat32_format_filename(const char *fat_name, char *output) {
     int out_idx = 0;
 
     for (int i = 0; i < 8 && fat_name[i] != ' '; i++) {
-        output[out_idx++] = fat_name[i];
+        char c = fat_name[i];
+        if (c >= 'A' && c <= 'Z')
+            c += 32;
+        output[out_idx++] = c;
     }
 
     if (fat_name[8] != ' ') {
         output[out_idx++] = '.';
         for (int i = 8; i < 11 && fat_name[i] != ' '; i++) {
-            output[out_idx++] = fat_name[i];
+            char c = fat_name[i];
+            if (c >= 'A' && c <= 'Z')
+                c += 32;
+            output[out_idx++] = c;
         }
     }
 
@@ -113,6 +119,39 @@ static void fat32_create_83_name(const char *filename, char *fat_name) {
             fat_name[8 + i] = c;
         }
     }
+}
+
+static void fat32_extract_lfn_chars(fat32_lfn_entry_t *lfn, char *out) {
+    int idx = 0;
+
+    for (int i = 0; i < 5; i++) {
+        uint16_t c = lfn->name1[i];
+        if (c == 0x0000 || c == 0xFFFF) {
+            out[idx] = '\0';
+            return;
+        }
+        out[idx++] = (char)(c & 0xFF);
+    }
+
+    for (int i = 0; i < 6; i++) {
+        uint16_t c = lfn->name2[i];
+        if (c == 0x0000 || c == 0xFFFF) {
+            out[idx] = '\0';
+            return;
+        }
+        out[idx++] = (char)(c & 0xFF);
+    }
+
+    for (int i = 0; i < 2; i++) {
+        uint16_t c = lfn->name3[i];
+        if (c == 0x0000 || c == 0xFFFF) {
+            out[idx] = '\0';
+            return;
+        }
+        out[idx++] = (char)(c & 0xFF);
+    }
+
+    out[idx] = '\0';
 }
 
 static int fat32_read_cluster(fat32_fs_t *fs, uint32_t cluster, void *buffer) {
@@ -183,9 +222,11 @@ static int fat32_flush_fat(fat32_fs_t *fs) {
     return 0;
 }
 
-static int fat32_read_directory(fat32_fs_t *fs, uint32_t cluster, fat32_dir_entry_t **entries, int *count) {
+static int fat32_read_directory(
+    fat32_fs_t *fs, uint32_t cluster, fat32_dir_entry_t **entries, int *count, char ***names_out) {
     *entries = NULL;
     *count = 0;
+    *names_out = NULL;
 
     uint8_t *buffer = (uint8_t *)malloc(fs->bytes_per_cluster);
     if (!buffer) {
@@ -202,18 +243,30 @@ static int fat32_read_directory(fat32_fs_t *fs, uint32_t cluster, fat32_dir_entr
     }
 
     fat32_dir_entry_t *entry_array = (fat32_dir_entry_t *)malloc(total_entries * sizeof(fat32_dir_entry_t));
-    if (!entry_array) {
+    char **names = (char **)malloc(total_entries * sizeof(char *));
+    if (!entry_array || !names) {
         free(buffer);
+        if (entry_array)
+            free(entry_array);
+        if (names)
+            free(names);
         return -1;
     }
 
     int entry_idx = 0;
     current_cluster = cluster;
 
+    char lfn_buffer[256];
+    int lfn_index = 0;
+    bool has_lfn = false;
+
     while (current_cluster < FAT32_EOC) {
         if (fat32_read_cluster(fs, current_cluster, buffer) < 0) {
             free(buffer);
             free(entry_array);
+            for (int i = 0; i < entry_idx; i++)
+                free(names[i]);
+            free(names);
             return -1;
         }
 
@@ -228,19 +281,57 @@ static int fat32_read_directory(fat32_fs_t *fs, uint32_t cluster, fat32_dir_entr
             }
 
             if ((uint8_t)entry->name[0] == 0xE5) {
+                has_lfn = false;
+                lfn_index = 0;
                 continue;
             }
 
             if (entry->attributes == FAT32_ATTR_LONG_NAME) {
+                fat32_lfn_entry_t *lfn = (fat32_lfn_entry_t *)entry;
+                int seq = lfn->order & 0x1F;
+
+                char part[14];
+                fat32_extract_lfn_chars(lfn, part);
+
+                int pos = (seq - 1) * 13;
+                for (int j = 0; part[j] && pos + j < 255; j++) {
+                    lfn_buffer[pos + j] = part[j];
+                    if (pos + j + 1 > lfn_index) {
+                        lfn_index = pos + j + 1;
+                    }
+                }
+
+                if (lfn->order & 0x40) {
+                    has_lfn = true;
+                }
                 continue;
             }
 
             if (entry->attributes & FAT32_ATTR_VOLUME_ID) {
+                has_lfn = false;
+                lfn_index = 0;
                 continue;
             }
 
             memcpy(&entry_array[entry_idx], entry, sizeof(fat32_dir_entry_t));
+
+            if (has_lfn && lfn_index > 0) {
+                lfn_buffer[lfn_index] = '\0';
+                names[entry_idx] = (char *)malloc(lfn_index + 1);
+                for (int j = 0; j <= lfn_index; j++) {
+                    char c = lfn_buffer[j];
+                    if (c >= 'A' && c <= 'Z')
+                        c += 32;
+                    names[entry_idx][j] = c;
+                }
+            } else {
+                names[entry_idx] = (char *)malloc(13);
+                fat32_format_filename(entry->name, names[entry_idx]);
+            }
+
             entry_idx++;
+            has_lfn = false;
+            lfn_index = 0;
         }
 
         current_cluster = fat32_get_next_cluster(fs, current_cluster);
@@ -251,46 +342,55 @@ done:
 
     *entries = entry_array;
     *count = entry_idx;
+    *names_out = names;
 
     return 0;
 }
 
 static fat32_dir_entry_t *fat32_find_file(fat32_fs_t *fs, uint32_t dir_cluster, const char *filename) {
     fat32_dir_entry_t *entries;
+    char **names;
     int count;
 
-    if (fat32_read_directory(fs, dir_cluster, &entries, &count) < 0) {
+    if (fat32_read_directory(fs, dir_cluster, &entries, &count, &names) < 0) {
         return NULL;
     }
 
     for (int i = 0; i < count; i++) {
-        char entry_name[13];
-        fat32_format_filename(entries[i].name, entry_name);
-
         bool match = true;
-        for (int j = 0; entry_name[j] && filename[j]; j++) {
-            char c1 = entry_name[j];
-            char c2 = filename[j];
+        const char *a = names[i];
+        const char *b = filename;
 
-            if (c1 >= 'a' && c1 <= 'z')
-                c1 -= 32;
-            if (c2 >= 'a' && c2 <= 'z')
-                c2 -= 32;
-
+        while (*a && *b) {
+            char c1 = *a;
+            char c2 = *b;
+            if (c1 >= 'A' && c1 <= 'Z')
+                c1 += 32;
+            if (c2 >= 'A' && c2 <= 'Z')
+                c2 += 32;
             if (c1 != c2) {
                 match = false;
                 break;
             }
+            a++;
+            b++;
         }
 
-        if (match && entry_name[strlen(filename)] == '\0') {
+        if (match && *a == '\0' && *b == '\0') {
             fat32_dir_entry_t *result = (fat32_dir_entry_t *)malloc(sizeof(fat32_dir_entry_t));
             memcpy(result, &entries[i], sizeof(fat32_dir_entry_t));
+
+            for (int j = 0; j < count; j++)
+                free(names[j]);
+            free(names);
             free(entries);
             return result;
         }
     }
 
+    for (int i = 0; i < count; i++)
+        free(names[i]);
+    free(names);
     free(entries);
     return NULL;
 }
@@ -565,8 +665,6 @@ int fat32_create_directory(fat32_fs_t *fs, uint32_t parent_cluster, const char *
 }
 
 fat32_fs_t *fat32_mount(const char *device_path) {
-    printkf_info("Mounting FAT32 from %s\n", device_path);
-
     int fd = vfs_open(device_path, O_RDWR);
     if (fd < 0) {
         printkf_error("fat32_mount(): Failed to open device %s\n", device_path);
@@ -633,8 +731,6 @@ fat32_fs_t *fat32_mount(const char *device_path) {
 
     fs->fat_cache_dirty = false;
 
-    printkf_ok("FAT loaded into memory (%u KB)\n", (uint32_t)(fat_size_bytes / 1024));
-
     return fs;
 }
 
@@ -662,9 +758,10 @@ void fat32_list_root(fat32_fs_t *fs) {
     printkf_info("Listing root directory:\n");
 
     fat32_dir_entry_t *entries;
+    char **names;
     int count;
 
-    if (fat32_read_directory(fs, fs->boot.root_cluster, &entries, &count) < 0) {
+    if (fat32_read_directory(fs, fs->boot.root_cluster, &entries, &count, &names) < 0) {
         printkf_error("fat32_list_root(): Failed to read root directory\n");
         return;
     }
@@ -674,16 +771,16 @@ void fat32_list_root(fat32_fs_t *fs) {
     for (int i = 0; i < count; i++) {
         fat32_dir_entry_t *entry = &entries[i];
 
-        char filename[13];
-        fat32_format_filename(entry->name, filename);
-
         uint32_t cluster = ((uint32_t)entry->cluster_high << 16) | entry->cluster_low;
 
         char type = (entry->attributes & FAT32_ATTR_DIRECTORY) ? 'D' : 'F';
 
-        printkf_info("  [%c] %-12s  %8u bytes  cluster %u\n", type, filename, entry->file_size, cluster);
+        printkf_info("  [%c] %-12s  %8u bytes  cluster %u\n", type, names[i], entry->file_size, cluster);
     }
 
+    for (int i = 0; i < count; i++)
+        free(names[i]);
+    free(names);
     free(entries);
 }
 
@@ -800,17 +897,16 @@ static vfs_ops_t fat32_vfs_ops = {
 
 static void fat32_populate_vfs_dir(fat32_fs_t *fs, vfs_node_t *vfs_dir, uint32_t cluster) {
     fat32_dir_entry_t *entries;
+    char **names;
     int count;
 
-    if (fat32_read_directory(fs, cluster, &entries, &count) < 0) {
+    if (fat32_read_directory(fs, cluster, &entries, &count, &names) < 0) {
         return;
     }
 
     for (int i = 0; i < count; i++) {
         fat32_dir_entry_t *entry = &entries[i];
-
-        char filename[13];
-        fat32_format_filename(entry->name, filename);
+        char *filename = names[i];
 
         if (filename[0] == '.' && (filename[1] == '\0' || (filename[1] == '.' && filename[2] == '\0'))) {
             continue;
@@ -841,6 +937,9 @@ static void fat32_populate_vfs_dir(fat32_fs_t *fs, vfs_node_t *vfs_dir, uint32_t
         }
     }
 
+    for (int i = 0; i < count; i++)
+        free(names[i]);
+    free(names);
     free(entries);
 }
 
@@ -867,14 +966,41 @@ int fat32_mount_vfs(const char *device_path, const char *mountpoint, void **fs_d
     return 0;
 }
 
+static void fat32_free_vfs_node(vfs_node_t *node) {
+    if (!node)
+        return;
+
+    vfs_node_t *child = node->children;
+    while (child) {
+        vfs_node_t *next = child->next;
+        fat32_free_vfs_node(child);
+        child = next;
+    }
+
+    if (node->data) {
+        free(node->data);
+        node->data = NULL;
+    }
+
+    free(node);
+}
+
 void fat32_unmount_vfs(void *fs_data, const char *mountpoint) {
     if (!fs_data)
         return;
 
     fat32_fs_t *fs = (fat32_fs_t *)fs_data;
 
-    // cleanup vfs
-    (void)mountpoint;
+    vfs_node_t *mount_node = vfs_lookup(mountpoint);
+    if (mount_node) {
+        vfs_node_t *child = mount_node->children;
+        while (child) {
+            vfs_node_t *next = child->next;
+            fat32_free_vfs_node(child);
+            child = next;
+        }
+        mount_node->children = NULL;
+    }
 
     fat32_unmount(fs);
 }

@@ -58,35 +58,6 @@ static void hcf() {
     }
 }
 
-void create_program(const char *path, const unsigned char *elf, unsigned int len) {
-    int fd = vfs_open(path, O_CREAT | O_WRONLY | O_TRUNC);
-    if (fd < 0) {
-        printkf_error("create_program(): Failed to create '%s'\n", path);
-        return;
-    }
-
-    vfs_write(fd, elf, len);
-    vfs_close(fd);
-}
-
-void create_programs() {
-    uint8_t shell[] = {
-#embed "programs/shell.elf"
-    };
-
-    uint8_t hello[] = {
-#embed "programs/hello.elf"
-    };
-
-    create_program("/system/cmd/sh", shell, sizeof(shell));
-    create_program("/hello", hello, sizeof(hello));
-}
-
-void setup_fs() {
-    vfs_mkdir("/system");
-    vfs_mkdir("/system/cmd");
-}
-
 void kmain() {
     if (LIMINE_BASE_REVISION_SUPPORTED(limine_base_revision) == false) {
         hcf();
@@ -134,11 +105,6 @@ void kmain() {
 
     vfs_init();
     mount_init();
-    tmpfs_init();
-
-    setup_fs();
-
-    create_programs();
 
     driver_manager_init();
     acpi_init(rsdp, offset);
@@ -159,6 +125,16 @@ void kmain() {
 
     syscall_init();
 
+    int result = mount("/dev/nvme0p3", "/", "fat32");
+    if (result < 0) {
+        printkf_error("main(): Failed to mount root\n");
+    }
+
+    result = mount("/dev/nvme0p2", "/boot", "fat32");
+    if (result < 0) {
+        printkf_error("main(): Failed to mount /boot\n");
+    }
+
     printkf_info("Starting /system/cmd/sh\n");
     task_t *init = task_create_elf("/system/cmd/sh", 16384);
     if (init == NULL) {
@@ -166,10 +142,6 @@ void kmain() {
         hcf();
     }
 
-    int result = mount("/dev/nvme0p1", "/mnt", "fat32");
-    if (result < 0) {
-        printkf_error("main(): Failed to mount FAT32\n");
-    }
     scheduler_add_task(init);
     scheduler_enable();
 

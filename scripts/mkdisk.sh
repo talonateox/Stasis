@@ -4,6 +4,16 @@ set -e
 IMG=disks/disk0.img
 SIZE=1024
 
+mkdir -p bin/userland
+
+gcc -m64 -nostdlib -static -fno-pie -no-pie -ffreestanding \
+    -Wl,-Ttext=0x400000 -Wl,--build-id=none \
+    -o bin/userland/sh userland/shell/shell.c
+
+gcc -m64 -nostdlib -static -fno-pie -no-pie -ffreestanding \
+    -Wl,-Ttext=0x400000 -Wl,--build-id=none \
+    -o bin/userland/hello userland/hello/hello.c
+
 truncate -s ${SIZE}M $IMG 
 
 parted -s $IMG mklabel gpt
@@ -27,8 +37,10 @@ sudo cp bin/stasis /mnt/esp/boot/kImg
 sudo cp limine.conf /mnt/esp/boot/limine/
 sudo cp limine/BOOTX64.EFI /mnt/esp/EFI/BOOT/
 
-echo "Hello from NVMe!" | sudo tee /mnt/root/TEST.TXT
-sudo mkdir -p /mnt/root/TESTDIR
+sudo mkdir -p /mnt/root/system/cmd
+sudo cp bin/userland/sh /mnt/root/system/cmd/sh
+sudo cp bin/userland/hello /mnt/root/system/cmd/hello
+
 
 sudo umount /mnt/esp /mnt/root
 sudo losetup -d $LOOP

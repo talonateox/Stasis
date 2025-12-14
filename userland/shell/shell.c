@@ -7,9 +7,9 @@ static char input_buffer[INPUT_BUFFER_SIZE];
 static int input_index = 0;
 static char current_dir[256] = "/";
 
-int strcmp(const char* s1, const char* s2) {
-    const unsigned char* p1 = (const unsigned char*)s1;
-    const unsigned char* p2 = (const unsigned char*)s2;
+int strcmp(const char *s1, const char *s2) {
+    const unsigned char *p1 = (const unsigned char *)s1;
+    const unsigned char *p2 = (const unsigned char *)s2;
 
     while (*p1 != '\0' && *p1 == *p2) {
         p1++;
@@ -19,9 +19,12 @@ int strcmp(const char* s1, const char* s2) {
     return (int)*p1 - (int)*p2;
 }
 
-void strcpy(char* s1, const char* s2) { while ((*s1++ = *s2++) != '\0'); }
+void strcpy(char *s1, const char *s2) {
+    while ((*s1++ = *s2++) != '\0')
+        ;
+}
 
-size_t strlen(const char* str) {
+size_t strlen(const char *str) {
     size_t length = 0;
     while (*str != '\0') {
         length++;
@@ -30,24 +33,26 @@ size_t strlen(const char* str) {
     return length;
 }
 
-int streq(const char* a, const char* b) {
+int streq(const char *a, const char *b) {
     while (*a && *b) {
-        if (*a != *b) return 0;
+        if (*a != *b)
+            return 0;
         a++;
         b++;
     }
     return *a == *b;
 }
 
-void strcat(char* dst, const char* src) {
-    while (*dst) dst++;
+void strcat(char *dst, const char *src) {
+    while (*dst)
+        dst++;
     while (*src) {
         *dst++ = *src++;
     }
     *dst = '\0';
 }
 
-static void build_path(char* result, const char* path) {
+static void build_path(char *result, const char *path) {
     if (path[0] == '/') {
         strcpy(result, path);
     } else {
@@ -59,29 +64,33 @@ static void build_path(char* result, const char* path) {
     }
 }
 
-static void cmd_exec(const char* args) {
+static void cmd_exec(const char *args) {
     if (args[0] == '\0') {
         print("exec: missing program path\n");
         return;
     }
 
     char arg_buf[256];
-    char* argv[16];
+    char *argv[16];
     int argc = 0;
 
     strcpy(arg_buf, args);
-    char* p = arg_buf;
+    char *p = arg_buf;
 
     while (*p && argc < 15) {
-        while (*p == ' ') p++;
-        if (*p == '\0') break;
+        while (*p == ' ')
+            p++;
+        if (*p == '\0')
+            break;
 
         argv[argc++] = p;
 
-        while (*p && *p != ' ') p++;
-        if (*p) *p++ = '\0';
+        while (*p && *p != ' ')
+            p++;
+        if (*p)
+            *p++ = '\0';
     }
-    argv[argc] = (char*)0;
+    argv[argc] = (char *)0;
 
     if (argc == 0) {
         print("exec: missing program path\n");
@@ -117,7 +126,7 @@ static void cmd_exec(const char* args) {
     }
 }
 
-static void cmd_ls(const char* args) {
+static void cmd_ls(const char *args) {
     char path[256];
 
     if (args[0] == '\0') {
@@ -146,7 +155,7 @@ static void cmd_ls(const char* args) {
     close(fd);
 }
 
-static void cmd_cd(const char* args) {
+static void cmd_cd(const char *args) {
     if (args[0] == '\0') {
         strcpy(current_dir, "/");
         return;
@@ -172,7 +181,7 @@ static void cmd_pwd(void) {
     print("\n");
 }
 
-static void cmd_mkdir(const char* args) {
+static void cmd_mkdir(const char *args) {
     if (args[0] == '\0') {
         print("mkdir: missing directory name\n");
         return;
@@ -188,7 +197,7 @@ static void cmd_mkdir(const char* args) {
     }
 }
 
-static void cmd_touch(const char* args) {
+static void cmd_touch(const char *args) {
     if (args[0] == '\0') {
         print("touch: missing file name\n");
         return;
@@ -207,7 +216,7 @@ static void cmd_touch(const char* args) {
     close(fd);
 }
 
-static void cmd_cat(const char* args) {
+static void cmd_cat(const char *args) {
     if (args[0] == '\0') {
         print("cat: missing file name\n");
         return;
@@ -231,17 +240,20 @@ static void cmd_cat(const char* args) {
         print(buf);
     }
 
+    print("\n");
+
     close(fd);
 }
 
-static void cmd_write(const char* args) {
+static void cmd_write(const char *args) {
     if (args[0] == '\0') {
         print("write: usage: write <file> <content>\n");
         return;
     }
 
     int i = 0;
-    while (args[i] && args[i] != ' ') i++;
+    while (args[i] && args[i] != ' ')
+        i++;
 
     if (args[i] == '\0') {
         print("write: missing content\n");
@@ -254,7 +266,7 @@ static void cmd_write(const char* args) {
     }
     filename[i] = '\0';
 
-    const char* content = &args[i + 1];
+    const char *content = &args[i + 1];
 
     char path[256];
     build_path(path, filename);
@@ -272,7 +284,7 @@ static void cmd_write(const char* args) {
     close(fd);
 }
 
-static void cmd_rm(const char* args) {
+static void cmd_rm(const char *args) {
     if (args[0] == '\0') {
         print("rm: missing file name\n");
         return;
@@ -288,7 +300,7 @@ static void cmd_rm(const char* args) {
     }
 }
 
-static void cmd_rmdir(const char* args) {
+static void cmd_rmdir(const char *args) {
     if (args[0] == '\0') {
         print("rm: missing file name\n");
         return;
@@ -328,20 +340,23 @@ static void process_command(void) {
         input_index--;
     }
 
-    char* cmd = input_buffer;
-    while (*cmd == ' ') cmd++;
+    char *cmd = input_buffer;
+    while (*cmd == ' ')
+        cmd++;
 
     if (*cmd == '\0') {
         input_index = 0;
         return;
     }
 
-    char* args = cmd;
-    while (*args && *args != ' ') args++;
+    char *args = cmd;
+    while (*args && *args != ' ')
+        args++;
     if (*args == ' ') {
         *args = '\0';
         args++;
-        while (*args == ' ') args++;
+        while (*args == ' ')
+            args++;
     }
 
     if (streq(cmd, "help")) {

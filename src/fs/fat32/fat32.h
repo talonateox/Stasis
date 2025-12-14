@@ -5,6 +5,18 @@
 
 #include "../vfs/vfs.h"
 
+#define FAT32_ATTR_READ_ONLY 0x01
+#define FAT32_ATTR_HIDDEN 0x02
+#define FAT32_ATTR_SYSTEM 0x04
+#define FAT32_ATTR_VOLUME_ID 0x08
+#define FAT32_ATTR_DIRECTORY 0x10
+#define FAT32_ATTR_ARCHIVE 0x20
+#define FAT32_ATTR_LONG_NAME 0x0F
+
+#define FAT32_EOC 0x0FFFFFF8
+#define FAT32_BAD_CLUSTER 0x0FFFFFF7
+#define FAT32_FREE_CLUSTER 0x00000000
+
 typedef struct {
     uint8_t jump[3];
     char oem_name[8];
@@ -53,17 +65,16 @@ typedef struct {
     uint32_t file_size;
 } __attribute__((packed)) fat32_dir_entry_t;
 
-#define FAT32_ATTR_READ_ONLY 0x01
-#define FAT32_ATTR_HIDDEN 0x02
-#define FAT32_ATTR_SYSTEM 0x04
-#define FAT32_ATTR_VOLUME_ID 0x08
-#define FAT32_ATTR_DIRECTORY 0x10
-#define FAT32_ATTR_ARCHIVE 0x20
-#define FAT32_ATTR_LONG_NAME 0x0F
-
-#define FAT32_EOC 0x0FFFFFF8
-#define FAT32_BAD_CLUSTER 0x0FFFFFF7
-#define FAT32_FREE_CLUSTER 0x00000000
+typedef struct {
+    uint8_t order;
+    uint16_t name1[5];
+    uint8_t attributes;
+    uint8_t type;
+    uint8_t checksum;
+    uint16_t name2[6];
+    uint16_t cluster;
+    uint16_t name3[2];
+} __attribute__((packed)) fat32_lfn_entry_t;
 
 typedef struct {
     char device_path[256];

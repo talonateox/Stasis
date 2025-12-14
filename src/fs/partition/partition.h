@@ -12,8 +12,8 @@ typedef struct {
     int index;
     uint8_t type;
     char type_name[32];
-    uint32_t lba_start;
-    uint32_t num_sectors;
+    uint64_t lba_start;
+    uint64_t num_sectors;
     bool bootable;
 } partition_info_t;
 
