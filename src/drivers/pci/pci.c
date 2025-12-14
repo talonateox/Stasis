@@ -192,13 +192,23 @@ void *pci_map_bar(pci_device_t *dev, uint8_t bar_num) {
     if (bar_num >= 6)
         return NULL;
 
-    uint32_t bar = pci_read_config_dword(dev, 0x10 + (bar_num * 4));
+    uint32_t bar_low = pci_read_config_dword(dev, 0x10 + (bar_num * 4));
 
-    if (bar & 1) {
+    if (bar_low & 1) {
         return NULL;
     }
 
-    uint64_t addr = bar & ~0xF;
+    uint64_t addr;
+    uint8_t bar_type = (bar_low >> 1) & 0x3;
+
+    if (bar_type == 0x2) {
+        if (bar_num >= 5)
+            return NULL;
+        uint32_t bar_high = pci_read_config_dword(dev, 0x10 + ((bar_num + 1) * 4));
+        addr = ((uint64_t)bar_high << 32) | (bar_low & ~0xFULL);
+    } else {
+        addr = bar_low & ~0xFULL;
+    }
 
     uint64_t virt = next_mmio_addr;
 
@@ -209,8 +219,6 @@ void *pci_map_bar(pci_device_t *dev, uint8_t bar_num) {
     next_mmio_addr += 8 * 0x1000;
 
     return (void *)virt;
-
-    return (void *)addr;
 }
 
 void pci_enable_bus_mastering(pci_device_t *dev) {
