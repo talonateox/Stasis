@@ -32,9 +32,9 @@ sudo mkdir -p /mnt/esp /mnt/root
 sudo mount ${LOOP}p2 /mnt/esp
 sudo mount ${LOOP}p3 /mnt/root
 
-sudo mkdir -p /mnt/esp/boot/limine /mnt/esp/EFI/BOOT
-sudo cp bin/stasis /mnt/esp/boot/kImg
-sudo cp limine.conf /mnt/esp/boot/limine/
+sudo mkdir -p /mnt/esp/limine /mnt/esp/EFI/BOOT
+sudo cp bin/stasis /mnt/esp/kern
+sudo cp limine.conf /mnt/esp/limine/
 sudo cp limine/BOOTX64.EFI /mnt/esp/EFI/BOOT/
 
 sudo mkdir -p /mnt/root/system/cmd

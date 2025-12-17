@@ -5,11 +5,12 @@
 #include "arch/x86_64/gdt/gdt.h"
 #include "drivers/acpi/acpi.h"
 #include "drivers/driver.h"
-#include "drivers/keyboard/keyboard.h"
 #include "drivers/nvme/nvme.h"
 #include "drivers/pci/pci.h"
 #include "drivers/pic/pic.h"
 #include "drivers/timer/timer.h"
+#include "drivers/usb/keyboard.h"
+#include "drivers/usb/xhci.h"
 #include "elf/elf.h"
 #include "fs/mount/mount.h"
 #include "fs/tmpfs/tmpfs.h"
@@ -111,6 +112,7 @@ void kmain() {
 
     pci_init(acpi_get_mcfg());
     nvme_driver_init();
+    xhci_init();
 
     printkf_info("FREE RAM: %k%llu%k\n", 0xcccc66, pfallocator_get_free_ram(), 0xffffff);
     printkf_info("USED RAM: %k%llu%k\n", 0xcccc66, pfallocator_get_used_ram(), 0xffffff);
@@ -119,9 +121,6 @@ void kmain() {
     task_init();
     scheduler_init();
     timer_set_callback(scheduler_tick);
-
-    keyboard_init();
-    keyboard_pic_start();
 
     syscall_init();
 
@@ -143,6 +142,12 @@ void kmain() {
     }
 
     scheduler_add_task(init);
+
+    task_t *kbd_task = task_create(usb_keyboard_task, 4096);
+    if (kbd_task) {
+        scheduler_add_task(kbd_task);
+    }
+
     scheduler_enable();
 
     hcf();

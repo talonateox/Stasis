@@ -44,6 +44,15 @@ static void buffer_put(char c) {
     buffer_head = next_head;
 }
 
+void keyboard_buffer_put(char c) {
+    buffer_put(c);
+
+    if (waiting_task != NULL) {
+        task_unblock(waiting_task);
+        waiting_task = NULL;
+    }
+}
+
 static bool buffer_empty() {
     return buffer_head == buffer_tail;
 }

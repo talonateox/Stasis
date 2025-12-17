@@ -89,6 +89,7 @@ task_t *task_create(void (*entry_point)(), uint64_t stack_size) {
     task->user_stack_size = 0;
     task->is_user = 0;
     task->exit_code = 0;
+    task->page_table = page_get_pml4();
 
     uint64_t stack_top = (uint64_t)task->stack + stack_size;
     stack_top &= ~0xFULL;

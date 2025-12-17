@@ -13,3 +13,4 @@ char keyboard_getchar();
 bool keyboard_haschar();
 
 void keyboard_pic_start();
+void keyboard_buffer_put(char c);
