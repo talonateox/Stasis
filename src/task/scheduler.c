@@ -158,7 +158,8 @@ restart:;
     } else if (current != NULL && current->state == TASK_RUNNING) {
         __asm__ volatile("sti");
     } else {
-        __asm__ volatile("sti; hlt");
+        __asm__ volatile("sti");
+        __asm__ volatile("hlt");
         goto restart;
     }
 }

@@ -8,7 +8,7 @@ typedef struct {
     uint16_t device;
     uint16_t subvendor;
     uint16_t subdevice;
-    uint32_t class;
+    uint32_t _class;
     uint32_t class_mask;
     void *driver_data;
 } pci_device_id_t;
@@ -18,7 +18,7 @@ typedef struct {
 #define PCI_DEVICE(vend, dev) .vendor = (vend), .device = (dev), .subvendor = PCI_ANY_ID, .subdevice = PCI_ANY_ID
 
 #define PCI_DEVICE_CLASS(dev_class, dev_class_mask)                                                                    \
-    .vendor = 0, .device = 0, .subvendor = 0, .subdevice = 0, .class = (dev_class), .class_mask = (dev_class_mask)
+    .vendor = 0, .device = 0, .subvendor = 0, .subdevice = 0, ._class = (dev_class), .class_mask = (dev_class_mask)
 
 typedef struct {
     uint16_t vendor;

@@ -121,4 +121,5 @@ run: disks/disk0.img
 		-device nvme,serial=deadbeef,drive=nvm0 \
 		-device qemu-xhci,id=xhci \
         -device usb-kbd,bus=xhci.0 \
-        -bios /usr/share/ovmf/OVMF.fd
+        -bios /usr/share/ovmf/OVMF.fd \
+        -debugcon stdio

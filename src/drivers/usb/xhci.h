@@ -57,6 +57,7 @@
 #define TRB_TYPE_HOST_CTRL 37
 
 #define TRB_CYCLE (1 << 0)
+#define TRB_TC (1 << 1)
 #define TRB_IOC (1 << 5)
 #define TRB_IDT (1 << 6)
 #define TRB_TYPE_SHIFT 10

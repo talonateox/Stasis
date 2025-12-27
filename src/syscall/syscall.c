@@ -175,7 +175,7 @@ uint64_t syscall_handler(uint64_t syscall, uint64_t arg1, uint64_t arg2, uint64_
         int fd = (int)arg1;
         char *buf = (char *)arg2;
         size_t size = (size_t)arg3;
-
+        
         if (fd == 0) {
             size_t i = 0;
             while (i < size) {

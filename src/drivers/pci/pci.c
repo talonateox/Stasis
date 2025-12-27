@@ -26,12 +26,12 @@ static int pci_bus_match(device_t *dev, driver_t *drv) {
         return -1;
 
     const pci_device_id_t *id = pdrv->id_table;
-    while (id->vendor || id->device || id->class) {
+    while (id->vendor || id->device || id->_class) {
         uint32_t dev_class = (pdev->header->_class << 16) | (pdev->header->subclass << 8) | pdev->header->prog_if;
 
-        if (id->class) {
+        if (id->_class) {
             uint32_t mask = id->class_mask ? id->class_mask : 0xFFFFFF;
-            if ((dev_class & mask) == (id->class & mask)) {
+            if ((dev_class & mask) == (id->_class & mask)) {
                 return 0;
             }
         } else if ((id->vendor == PCI_ANY_ID || id->vendor == pdev->header->vendor) &&

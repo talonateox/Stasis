@@ -40,6 +40,7 @@ void heap_init(void *base, size_t page_count, size_t offset) {
 }
 
 void heap_expand(size_t size) {
+    printkf_warn("heap_expand: %llu bytes\n", size);
     if (size % PAGE_SIZE) {
         size -= size % PAGE_SIZE;
         size += PAGE_SIZE;

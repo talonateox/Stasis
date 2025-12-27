@@ -116,12 +116,36 @@ static int usb_keyboard_configure_endpoint(usb_keyboard_t *kbd) {
 }
 
 static void usb_keyboard_queue_transfer(usb_keyboard_t *kbd) {
-    xhci_trb_t trb = {0};
-    trb.parameter = kbd->report_buffer_phys;
-    trb.status = kbd->max_packet_size;
-    trb.control = (TRB_TYPE_NORMAL << TRB_TYPE_SHIFT) | TRB_IOC;
-
-    xhci_ring_enqueue(kbd->int_ring, &trb);
+    xhci_ring_t *ring = kbd->int_ring;
+    
+    xhci_trb_t *dest = &ring->trbs[ring->enqueue];
+    
+    dest->parameter = kbd->report_buffer_phys;
+    dest->status = kbd->max_packet_size;
+    dest->control = (TRB_TYPE_NORMAL << TRB_TYPE_SHIFT) | TRB_IOC;
+    
+    if (ring->cycle) {
+        dest->control |= TRB_CYCLE;
+    } else {
+        dest->control &= ~TRB_CYCLE;
+    }
+    
+    __asm__ volatile("mfence" ::: "memory");
+    
+    ring->enqueue++;
+    
+    if (ring->enqueue >= ring->size - 1) {
+        xhci_trb_t *link = &ring->trbs[ring->size - 1];
+        link->control = (TRB_TYPE_LINK << TRB_TYPE_SHIFT) | TRB_TC;
+        if (ring->cycle) {
+            link->control |= TRB_CYCLE;
+        }
+        
+        __asm__ volatile("mfence" ::: "memory");
+        
+        ring->enqueue = 0;
+        ring->cycle = !ring->cycle;
+    }
 
     uint8_t ep_index = (kbd->endpoint & 0x0F) * 2 + 1;
     xhci_ring_doorbell(kbd->xhci, kbd->dev->slot_id, ep_index);
@@ -224,7 +248,7 @@ int usb_keyboard_probe(xhci_controller_t *xhci, xhci_device_t *dev) {
     return 0;
 }
 
-void usb_keyboard_poll(void) {
+void usb_keyboard_poll() {
     for (usb_keyboard_t *kbd = keyboards; kbd; kbd = kbd->next) {
         xhci_controller_t *xhci = kbd->xhci;
 
@@ -259,7 +283,7 @@ void usb_keyboard_poll(void) {
     }
 }
 
-void usb_keyboard_task(void) {
+void usb_keyboard_task() {
     while (1) {
         usb_keyboard_poll();
         task_yield();

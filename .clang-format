@@ -1,0 +1,5 @@
+BasedOnStyle: Microsoft
+IndentWidth: 4
+BreakBeforeBraces: Attach
+AlignAfterOpenBracket: Align
+BinPackParameters: false
